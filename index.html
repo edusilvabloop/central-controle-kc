@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Central KC</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Central KC">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0A0E13">
+<style>
+  :root{--bg:#0A0E13;--p:#111821;--ln:#1E2935;--ink:#E9EEF4;--mut:#8B98A9;--ok:#22C55E;--bad:#F04438}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 24px);min-height:100vh}
+  main{max-width:440px;margin:0 auto;display:grid;gap:18px}
+  .topo{display:flex;align-items:center;gap:14px}
+  .topo img{width:56px;height:56px;border-radius:14px}
+  h1{font-size:24px;line-height:1.15;margin:0}
+  .mut{color:var(--mut);font-size:14px;margin:2px 0 0}
+  .card{background:var(--p);border:1px solid var(--ln);border-radius:16px;padding:18px}
+  .card h2{font-size:17px;margin:0 0 10px}
+  ol{margin:0;padding-left:20px;display:grid;gap:8px}
+  label{display:block;font-size:14px;color:var(--mut);margin-bottom:6px}
+  input{width:100%;font:inherit;font-size:18px;letter-spacing:.08em;text-transform:uppercase;padding:12px 14px;border-radius:12px;border:1px solid var(--ln);background:#0D131A;color:var(--ink)}
+  button,.botao{display:block;width:100%;margin-top:12px;font:inherit;font-weight:600;font-size:16px;min-height:50px;border:0;border-radius:12px;background:var(--ok);color:#06210F;cursor:pointer;text-align:center;line-height:50px;text-decoration:none}
+  .botao.sec{background:transparent;border:1px solid var(--ln);color:var(--ink)}
+  button:disabled{opacity:.5}
+  .status{font-size:14px;margin:10px 0 0;min-height:1.4em}
+  .status.ok{color:var(--ok)}.status.erro{color:var(--bad)}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <div class="topo">
+    <img src="icon-192.png" alt="">
+    <div>
+      <h1>Central de Controle</h1>
+      <p class="mut">KC Cursos · vendas, alertas e resumos</p>
+    </div>
+  </div>
+
+  <section class="card" id="instalar" hidden>
+    <h2>1. Instale na tela de início</h2>
+    <ol>
+      <li>Toque em <b>Compartilhar</b> (o quadrado com a seta, na barra do Safari).</li>
+      <li>Escolha <b>Adicionar à Tela de Início</b> e confirme.</li>
+      <li>Feche o Safari e abra a <b>Central KC</b> pelo novo ícone.</li>
+    </ol>
+    <p class="mut" style="margin-top:10px">No iPhone, as notificações só funcionam abrindo pelo ícone da tela de início (iOS 16.4 ou mais novo).</p>
+  </section>
+
+  <section class="card" id="ativar" hidden>
+    <h2>Ativar notificações</h2>
+    <label for="codigo">Código de acesso</label>
+    <input id="codigo" autocomplete="off" autocapitalize="characters" placeholder="Ex.: A1B2C3D4">
+    <button id="btn" type="button">Ativar notificações</button>
+    <p class="status" id="status" role="status"></p>
+  </section>
+
+  <section class="card" id="pronto" hidden>
+    <h2>✅ Tudo certo</h2>
+    <p class="mut">Este aparelho vai receber as vendas aprovadas, os alertas e os resumos das 07h00, 12h20, 18h20 e 23h30.</p>
+  </section>
+
+  <a class="botao sec" href="https://claude.ai/artifact/GL7N1igKBKVusHfB3z379M">Abrir o painel de lucro</a>
+</main>
+<script>
+{
+  const PUSH_URL = 'https://pqmqdelhadkacsiryfeh.supabase.co/functions/v1/push';
+  const VAPID = 'BMxX-ufUtOXZqWZlIMG-uHnru4Dtu3f6fZXoOMpb-rfaaimisvvVaMPf-5sdEcLDECIpOkQ26xGrnahqI-Muwt8';
+  const $ = (id) => document.getElementById(id);
+  const status = (t, cls) => { $('status').textContent = t; $('status').className = 'status ' + (cls || ''); };
+
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const instalado = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const suporta = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+  const b64 = (s) => { const p = '='.repeat((4 - s.length % 4) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, (c) => c.charCodeAt(0)); };
+
+  async function mostrar() {
+    if (ios && !instalado) { $('instalar').hidden = false; return; }
+    if (!suporta) { $('ativar').hidden = false; $('btn').disabled = true; status('Este navegador não aceita notificações. No iPhone, atualize para o iOS 16.4 ou mais novo e abra pelo ícone da tela de início.', 'erro'); return; }
+    const reg = await navigator.serviceWorker.register('sw.js');
+    const sub = await reg.pushManager.getSubscription();
+    if (sub && Notification.permission === 'granted') $('pronto').hidden = false;
+    $('ativar').hidden = false;
+    if (sub) $('btn').textContent = 'Reativar neste aparelho';
+  }
+
+  $('btn').addEventListener('click', async () => {
+    const codigo = $('codigo').value.trim().toUpperCase();
+    if (!codigo) { status('Digite o código de acesso.', 'erro'); return; }
+    $('btn').disabled = true;
+    status('Ativando…');
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') throw new Error('Você não permitiu as notificações. Ative em Ajustes → Notificações → Central KC.');
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
+      const r = await fetch(PUSH_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'inscrever', codigo, subscription: sub.toJSON(), aparelho: navigator.userAgent }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.erro || 'Não foi possível ativar. Tente de novo.');
+      status('Pronto! Você deve receber uma notificação de confirmação agora.', 'ok');
+      $('pronto').hidden = false;
+    } catch (e) {
+      status(e.message || String(e), 'erro');
+    } finally {
+      $('btn').disabled = false;
+    }
+  });
+
+  mostrar().catch((e) => status(String(e), 'erro'));
+}
+</script>
+</body>
+</html>
