@@ -1,4 +1,5 @@
 // Central de Controle · KC Cursos — service worker das notificações
+// v2 - painel
 const PAINEL = 'https://claude.ai/artifact/GL7N1igKBKVusHfB3z379M';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -13,12 +14,12 @@ self.addEventListener('push', (event) => {
     icon: './icon-192.png',
     badge: './icon-192.png',
     tag: d.tag || undefined,
-    data: { url: d.url || PAINEL },
+    data: { url: self.registration.scope },
   }));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || PAINEL;
+  const url = (event.notification.data && event.notification.data.url) || self.registration.scope;
   event.waitUntil(self.clients.openWindow(url));
 });

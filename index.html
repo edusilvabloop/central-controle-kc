@@ -11,112 +11,480 @@
 <meta name="apple-mobile-web-app-title" content="Central KC">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0A0E13">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <style>
-  :root{--bg:#0A0E13;--p:#111821;--ln:#1E2935;--ink:#E9EEF4;--mut:#8B98A9;--ok:#22C55E;--bad:#F04438}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    padding:calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 24px);min-height:100vh}
-  main{max-width:440px;margin:0 auto;display:grid;gap:18px}
-  .topo{display:flex;align-items:center;gap:14px}
-  .topo img{width:56px;height:56px;border-radius:14px}
-  h1{font-size:24px;line-height:1.15;margin:0}
-  .mut{color:var(--mut);font-size:14px;margin:2px 0 0}
-  .card{background:var(--p);border:1px solid var(--ln);border-radius:16px;padding:18px}
-  .card h2{font-size:17px;margin:0 0 10px}
-  ol{margin:0;padding-left:20px;display:grid;gap:8px}
-  label{display:block;font-size:14px;color:var(--mut);margin-bottom:6px}
-  input{width:100%;font:inherit;font-size:18px;letter-spacing:.08em;text-transform:uppercase;padding:12px 14px;border-radius:12px;border:1px solid var(--ln);background:#0D131A;color:var(--ink)}
-  button,.botao{display:block;width:100%;margin-top:12px;font:inherit;font-weight:600;font-size:16px;min-height:50px;border:0;border-radius:12px;background:var(--ok);color:#06210F;cursor:pointer;text-align:center;line-height:50px;text-decoration:none}
-  .botao.sec{background:transparent;border:1px solid var(--ln);color:var(--ink)}
-  button:disabled{opacity:.5}
-  .status{font-size:14px;margin:10px 0 0;min-height:1.4em}
-  .status.ok{color:var(--ok)}.status.erro{color:var(--bad)}
-  [hidden]{display:none!important}
+:root{--bg:#0A0E13;--p:#111821;--p2:#0D131A;--ln:#1E2935;--ink:#E9EEF4;--mut:#8B98A9;--ok:#22C55E;--oks:rgba(34,197,94,.14);--bad:#F04438;--bads:rgba(240,68,56,.14);--gas:#5B8DEF;--warn:#F5B83D;--warns:rgba(245,184,61,.14)}
+*{box-sizing:border-box;min-width:0}
+html{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;overflow-x:clip}
+.app{max-width:1240px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 14px) max(env(safe-area-inset-right),14px) calc(env(safe-area-inset-bottom) + 80px) max(env(safe-area-inset-left),14px);display:grid;gap:16px}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+.topo{display:flex;align-items:center;gap:12px;justify-content:space-between}
+.marca{display:flex;align-items:center;gap:10px}
+.marca img{width:40px;height:40px;border-radius:10px}
+.marca b{display:block;font-size:17px;line-height:1.1}
+.marca span{font-size:12.5px;color:var(--mut)}
+.ic{min-width:44px;min-height:44px;border-radius:12px;border:1px solid var(--ln);background:var(--p);color:var(--mut);font-size:18px}
+.atual{font-size:12.5px;color:var(--mut);text-align:right}
+.pills{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.pills::-webkit-scrollbar{display:none}
+.pill,.tab{font-size:14px;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--ln);background:var(--p);color:var(--mut);white-space:nowrap;flex:none}
+.tab{border-radius:10px}
+.pill[aria-pressed=true],.tab[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+.card{background:var(--p);border:1px solid var(--ln);border-radius:16px;padding:16px}
+.lbl{font-size:13px;color:var(--mut)}
+h2{font-size:17px;margin:0}
+.aviso{border:1px solid var(--ln);border-left:4px solid var(--warn);background:var(--warns);border-radius:12px;padding:12px 14px;font-size:14px;margin:0}
+.erro{border-left-color:var(--bad);background:var(--bads)}
+.hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+@media(max-width:760px){.hero{grid-template-columns:minmax(0,1fr)}}
+.lucro{position:relative;overflow:hidden}
+.lucro::before{content:'';position:absolute;inset:0;background:radial-gradient(120% 90% at 0% 0%,var(--glow,transparent),transparent 60%);pointer-events:none}
+.lucro.pos{--glow:rgba(34,197,94,.18)}.lucro.neg{--glow:rgba(240,68,56,.18)}
+.l1{display:flex;gap:8px;align-items:center;justify-content:space-between;position:relative}
+.st{font-size:13px;font-weight:600;border-radius:999px;padding:4px 10px}
+.st.pos{background:var(--oks);color:var(--ok)}.st.neg{background:var(--bads);color:var(--bad)}
+.mega{position:relative;font-size:clamp(42px,11vw,76px);line-height:1;font-weight:700;letter-spacing:-.02em;margin:10px 0 6px;white-space:nowrap}
+.pos-t{color:var(--ok)}.neg-t{color:var(--bad)}
+.delta{position:relative;display:block;font-size:13px;color:var(--mut)}
+.delta.bom{color:var(--ok)}.delta.ruim{color:var(--bad)}
+.cascata{position:relative;display:grid;gap:9px;margin-top:16px}
+.linha{display:grid;grid-template-columns:minmax(0,11em) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:14px;color:var(--mut)}
+.linha.total{color:var(--ink);font-weight:600;border-top:1px solid var(--ln);padding-top:10px}
+.trilho{height:8px;background:var(--p2);border-radius:4px;overflow:hidden}
+.barra{display:block;height:100%;border-radius:4px;transition:width .5s ease-out}
+.num{text-align:right;white-space:nowrap;color:var(--ink)}
+@media(max-width:420px){.linha{grid-template-columns:minmax(0,1fr) auto}.linha .trilho{grid-column:1/-1;order:3}}
+.roas{display:flex;flex-direction:column;justify-content:space-between;gap:14px}
+.roasn{font-size:clamp(40px,9vw,60px);font-weight:700;line-height:1;margin:8px 0 4px}
+.bom-t{color:var(--ok)}.meio-t{color:var(--warn)}.ruim-t{color:var(--bad)}
+.roast{font-size:14px;color:var(--mut);margin:0}
+.roast b{color:var(--ink)}
+.medidor{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--bad) 0 33%,var(--warn) 33% 66%,var(--ok) 66% 100%);position:relative}
+.agulha{position:absolute;top:-5px;width:4px;height:18px;border-radius:2px;background:var(--ink);box-shadow:0 0 0 3px var(--p);transition:left .6s ease-out}
+.escala{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-top:6px}
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mini div{background:var(--p2);border:1px solid var(--ln);border-radius:12px;padding:10px 12px}
+.mini b{display:block;font-size:20px;margin-top:2px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.val{font-size:22px;font-weight:600;margin:4px 0 2px;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:8px;font-size:14px}
+.chip{border:1px solid var(--ln);background:var(--p);border-radius:999px;padding:7px 12px;color:var(--mut)}
+.chip b{color:var(--ink);margin-left:4px}
+.cab{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between}
+.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--mut)}
+.leg span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+.leg .ln::before{height:3px;border-radius:2px;vertical-align:3px}
+.fig{position:relative;height:280px;margin-top:12px}
+.fig svg{display:block;width:100%;height:100%}
+.fig text{fill:var(--mut);font-size:12px}
+.tip{position:absolute;pointer-events:none;background:#18212C;border:1px solid var(--ln);box-shadow:0 8px 24px rgba(0,0,0,.45);border-radius:10px;padding:9px 11px;font-size:13px;white-space:nowrap;z-index:2;top:6px}
+.tip div{display:flex;justify-content:space-between;gap:16px}
+.tip span{color:var(--mut)}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:14px 0 10px}
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.busca{font:inherit;font-size:16px;min-height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--ln);background:var(--p2);color:var(--ink);flex:1 1 180px;max-width:300px}
+.busca::placeholder{color:var(--mut)}
+.ordem{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--mut)}
+select{font:inherit;font-size:16px;min-height:40px;padding:0 10px;border-radius:10px;border:1px solid var(--ln);background:var(--p2);color:var(--ink)}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-weight:500;color:var(--mut);font-size:12.5px;text-align:right;padding:8px 10px;border-bottom:1px solid var(--ln);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td{padding:10px;border-bottom:1px solid var(--ln);text-align:right;white-space:nowrap}
+td:first-child{white-space:normal;min-width:220px;max-width:440px}
+.camp{display:block;font-size:12px;color:var(--mut);margin-top:2px}
+.lb{display:block;height:4px;border-radius:2px;margin:6px 0 0 auto;max-width:120px}
+.rc{display:inline-block;min-width:48px;text-align:center;border-radius:999px;padding:2px 8px;font-weight:600;font-size:13px}
+.rc.bom{background:var(--oks);color:var(--ok)}.rc.meio{background:var(--warns);color:var(--warn)}.rc.ruim{background:var(--bads);color:var(--bad)}
+@media(max-width:640px){
+  table.stack thead{display:none}
+  table.stack tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--ln)}
+  table.stack td{border:0;padding:2px 0;text-align:left;white-space:normal;min-width:0}
+  table.stack td:first-child{grid-column:1/-1;font-weight:600;max-width:none}
+  table.stack td:not(:first-child)::before{content:attr(data-l);display:block;font-size:11.5px;color:var(--mut);font-weight:400}
+  table.stack .lb{margin-left:0}
+}
+.nota{font-size:13px;color:var(--mut);margin:10px 0 0}
+details{font-size:14px;color:var(--mut)}
+summary{cursor:pointer;color:var(--ink);min-height:32px}
+.nav{position:fixed;left:0;right:0;bottom:0;background:rgba(10,14,19,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--ln);display:flex;justify-content:center;gap:8px;padding:8px 12px calc(env(safe-area-inset-bottom) + 8px);z-index:5}
+.nav button{flex:1;max-width:220px;min-height:48px;border-radius:12px;border:0;background:transparent;color:var(--mut);font-size:14px}
+.nav button[aria-current=page]{background:var(--p);color:var(--ink);font-weight:600}
+.form{max-width:440px;margin:0 auto;width:100%;display:grid;gap:14px}
+.form ol{margin:0;padding-left:20px;display:grid;gap:8px}
+.inp{width:100%;font:inherit;font-size:18px;letter-spacing:.08em;text-transform:uppercase;padding:12px 14px;border-radius:12px;border:1px solid var(--ln);background:var(--p2);color:var(--ink)}
+.btn{display:block;width:100%;margin-top:12px;font-weight:600;font-size:16px;min-height:50px;border:0;border-radius:12px;background:var(--ok);color:#06210F}
+.btn.sec{background:transparent;border:1px solid var(--ln);color:var(--ink)}
+.btn:disabled{opacity:.5}
+.status{font-size:14px;margin:10px 0 0;min-height:1.4em}
+.status.ok{color:var(--ok)}.status.erro{color:var(--bad)}
+.esq{opacity:.55;transition:opacity .2s}
 </style>
 </head>
 <body>
-<main>
-  <div class="topo">
-    <img src="icon-192.png" alt="">
-    <div>
-      <h1>Central de Controle</h1>
-      <p class="mut">KC Cursos · vendas, alertas e resumos</p>
+<div class="app">
+  <header class="topo">
+    <div class="marca"><img src="icon-192.png" alt=""><div><b>Central de Controle</b><span>KC Cursos</span></div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="atual" id="atualizado"></span>
+      <button class="ic" id="recarregar" type="button" aria-label="Atualizar agora">↻</button>
     </div>
-  </div>
+  </header>
 
-  <section class="card" id="instalar" hidden>
-    <h2>1. Instale na tela de início</h2>
-    <ol>
-      <li>Toque em <b>Compartilhar</b> (o quadrado com a seta, na barra do Safari).</li>
-      <li>Escolha <b>Adicionar à Tela de Início</b> e confirme.</li>
-      <li>Feche o Safari e abra a <b>Central KC</b> pelo novo ícone.</li>
-    </ol>
-    <p class="mut" style="margin-top:10px">No iPhone, as notificações só funcionam abrindo pelo ícone da tela de início (iOS 16.4 ou mais novo).</p>
+  <!-- ENTRAR -->
+  <section id="tela-entrar" class="form" hidden>
+    <div class="card">
+      <h2>Entrar</h2>
+      <p class="lbl" style="margin:6px 0 12px">Digite o código de acesso da Central de Controle. Ele fica salvo neste aparelho.</p>
+      <input class="inp" id="codigo-entrar" autocomplete="off" autocapitalize="characters" placeholder="Ex.: A1B2C3D4" aria-label="Código de acesso">
+      <button class="btn" id="btn-entrar" type="button">Entrar</button>
+      <p class="status" id="status-entrar" role="status"></p>
+    </div>
   </section>
 
-  <section class="card" id="ativar" hidden>
-    <h2>Ativar notificações</h2>
-    <label for="codigo">Código de acesso</label>
-    <input id="codigo" autocomplete="off" autocapitalize="characters" placeholder="Ex.: A1B2C3D4">
-    <button id="btn" type="button">Ativar notificações</button>
-    <p class="status" id="status" role="status"></p>
+  <!-- PAINEL -->
+  <section id="tela-painel" hidden>
+    <div style="display:grid;gap:16px" id="painel">
+      <div class="pills" role="group" aria-label="Período" id="periodo">
+        <button type="button" class="pill" data-de="0" data-ate="0">Hoje</button>
+        <button type="button" class="pill" data-de="1" data-ate="1">Ontem</button>
+        <button type="button" class="pill" data-de="6" data-ate="0">7 dias</button>
+        <button type="button" class="pill" data-de="13" data-ate="0">14 dias</button>
+        <button type="button" class="pill" data-de="29" data-ate="0">30 dias</button>
+        <button type="button" class="pill" data-mes="1">Este mês</button>
+      </div>
+      <p class="aviso erro" id="erro-painel" hidden></p>
+
+      <section class="hero">
+        <div class="card lucro" id="c-lucro">
+          <div class="l1"><span class="lbl" id="t-periodo">Lucro</span><span class="st pos" id="st-pos" hidden>▲ Lucrando</span><span class="st neg" id="st-neg" hidden>▼ No prejuízo</span></div>
+          <div class="mega" id="v-lucro">—</div>
+          <span class="delta" id="d-lucro"></span>
+          <div class="cascata">
+            <div class="linha"><span>Faturamento</span><span class="trilho"><span class="barra" id="b-fat"></span></span><span class="num" id="q-fat">—</span></div>
+            <div class="linha"><span>− Imposto (6%)</span><span class="trilho"><span class="barra" id="b-imp"></span></span><span class="num" id="q-imp">—</span></div>
+            <div class="linha"><span>− Gasto Meta</span><span class="trilho"><span class="barra" id="b-gasto"></span></span><span class="num" id="q-gasto">—</span></div>
+            <div class="linha"><span>− Imposto Meta (12,5%)</span><span class="trilho"><span class="barra" id="b-impm"></span></span><span class="num" id="q-impm">—</span></div>
+            <div class="linha total"><span>= Lucro</span><span class="trilho"><span class="barra" id="b-lucro"></span></span><span class="num" id="q-lucro">—</span></div>
+          </div>
+        </div>
+        <div class="card roas">
+          <div>
+            <span class="lbl">ROAS</span>
+            <div class="roasn" id="v-roas">—</div>
+            <p class="roast">A cada R$ 1 no Meta voltaram <b id="roas-txt">—</b> de faturamento.</p>
+            <span class="delta" id="d-roas"></span>
+          </div>
+          <div><div class="medidor"><span class="agulha" id="agulha" hidden></span></div><div class="escala"><span>0</span><span>1,0</span><span>2,0</span><span>3+</span></div></div>
+          <div class="mini">
+            <div><span class="lbl">Vendas</span><b id="v-vendas">—</b><span class="delta" id="d-vendas"></span></div>
+            <div><span class="lbl">CPA</span><b id="v-cpa">—</b><span class="delta" id="d-cpa"></span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tiles">
+        <div class="card"><div class="lbl">Faturamento líquido</div><div class="val" id="v-fat">—</div><span class="delta" id="d-fat"></span></div>
+        <div class="card"><div class="lbl">Gasto Meta</div><div class="val" id="v-gasto">—</div><span class="delta" id="d-gasto"></span></div>
+        <div class="card"><div class="lbl">Valor cheio das vendas</div><div class="val" id="v-bruto">—</div><span class="delta">antes da taxa da Kiwify</span></div>
+      </section>
+
+      <div class="chips">
+        <span class="chip">Pix/boleto pendentes<b id="c-pend">—</b></span>
+        <span class="chip">Cartões recusados<b id="c-rec">—</b></span>
+        <span class="chip">Reembolsos<b id="c-reemb">—</b></span>
+        <span class="chip">Vendas sem UTM<b id="c-sem">—</b></span>
+      </div>
+
+      <section class="card">
+        <div class="cab"><h2>Faturamento, gasto e lucro por dia</h2>
+          <div class="leg"><span style="--c:var(--ok)">Faturamento</span><span style="--c:var(--gas)">Gasto Meta</span><span class="ln" style="--c:var(--ink)">Lucro</span></div></div>
+        <div class="fig" id="grafico"><svg id="svg" role="img" aria-label="Faturamento e gasto em barras e lucro em linha, por dia"></svg><div class="tip" id="tip" hidden></div></div>
+      </section>
+
+      <section class="card">
+        <h2>Ranking de campanhas, conjuntos e anúncios</h2>
+        <div class="ctrl">
+          <div class="tabs" role="tablist" aria-label="Nível">
+            <button type="button" role="tab" class="tab" data-nivel="campanha" aria-selected="true">Campanhas</button>
+            <button type="button" role="tab" class="tab" data-nivel="conjunto" aria-selected="false">Conjuntos</button>
+            <button type="button" role="tab" class="tab" data-nivel="anuncio" aria-selected="false">Anúncios</button>
+          </div>
+          <input type="search" class="busca" id="busca" placeholder="Buscar (ex.: GOLD, HardSell)" aria-label="Buscar por nome">
+          <label class="ordem">Ordenar por <select id="ordem"><option value="lucro">Lucro</option><option value="gasto">Gasto</option><option value="vendas">Vendas</option><option value="roas">ROAS</option><option value="faturamento">Faturamento</option></select></label>
+        </div>
+        <div class="scroll"><table class="stack"><thead><tr><th>Nome</th><th>Lucro</th><th>ROAS</th><th>Gasto</th><th>Vendas</th><th>Faturamento</th><th>CPA</th></tr></thead><tbody id="ranking"></tbody></table></div>
+        <p class="nota" id="ranking-nota"></p>
+      </section>
+
+      <section class="card">
+        <h2>Vendas por produto</h2>
+        <div class="scroll"><table><thead><tr><th>Produto</th><th>Vendas</th><th>Faturamento</th></tr></thead><tbody id="produtos"></tbody></table></div>
+      </section>
+
+      <details>
+        <summary>Como cada número é calculado</summary>
+        <p>Faturamento é o que a Kiwify repassa de cada venda aprovada, já sem a taxa dela. Imposto é 6% (Simples Nacional) sobre o preço do produto, sem os juros do parcelamento. Imposto Meta é 12,5% sobre o gasto com anúncios. Lucro = faturamento − imposto − gasto − imposto Meta. ROAS = faturamento ÷ gasto (verde a partir de 2, amarelo entre 1 e 2, vermelho abaixo de 1). CPA = gasto ÷ vendas aprovadas. A venda entra no dia em que foi aprovada e é ligada ao anúncio pelo ID que vem na UTM. O gasto do Meta é atualizado de hora em hora.</p>
+      </details>
+    </div>
   </section>
 
-  <section class="card" id="pronto" hidden>
-    <h2>✅ Tudo certo</h2>
-    <p class="mut">Este aparelho vai receber as vendas aprovadas, os alertas e os resumos das 07h00, 12h20, 18h20 e 23h30.</p>
+  <!-- NOTIFICAÇÕES -->
+  <section id="tela-notif" class="form" hidden>
+    <section class="card" id="instalar" hidden>
+      <h2>Instale na tela de início</h2>
+      <ol>
+        <li>Toque em <b>Compartilhar</b> (o quadrado com a seta, na barra do Safari).</li>
+        <li>Escolha <b>Adicionar à Tela de Início</b> e confirme.</li>
+        <li>Abra a <b>Central KC</b> pelo novo ícone.</li>
+      </ol>
+      <p class="lbl" style="margin-top:10px">No iPhone, as notificações só funcionam abrindo pelo ícone da tela de início (iOS 16.4 ou mais novo).</p>
+    </section>
+    <section class="card" id="ativar">
+      <h2>Notificações</h2>
+      <p class="lbl" style="margin:6px 0 0">Vendas aprovadas, reembolsos, alertas e os resumos das 07h00, 12h20, 18h20 e 23h30, com a logo da KC.</p>
+      <button class="btn" id="btn-notif" type="button">Ativar notificações neste aparelho</button>
+      <p class="status" id="status-notif" role="status"></p>
+    </section>
+    <button class="btn sec" id="sair" type="button">Sair deste aparelho</button>
   </section>
+</div>
 
-  <a class="botao sec" href="https://claude.ai/artifact/GL7N1igKBKVusHfB3z379M">Abrir o painel de lucro</a>
-</main>
+<nav class="nav" id="nav" hidden>
+  <button type="button" data-tela="painel" aria-current="page">📊 Painel</button>
+  <button type="button" data-tela="notif">🔔 Notificações</button>
+</nav>
+
 <script>
 {
-  const PUSH_URL = 'https://pqmqdelhadkacsiryfeh.supabase.co/functions/v1/push';
-  const VAPID = 'BMxX-ufUtOXZqWZlIMG-uHnru4Dtu3f6fZXoOMpb-rfaaimisvvVaMPf-5sdEcLDECIpOkQ26xGrnahqI-Muwt8';
-  const $ = (id) => document.getElementById(id);
-  const status = (t, cls) => { $('status').textContent = t; $('status').className = 'status ' + (cls || ''); };
+const BASE = 'https://pqmqdelhadkacsiryfeh.supabase.co/functions/v1/';
+const VAPID = 'BMxX-ufUtOXZqWZlIMG-uHnru4Dtu3f6fZXoOMpb-rfaaimisvvVaMPf-5sdEcLDECIpOkQ26xGrnahqI-Muwt8';
+const $ = (id) => document.getElementById(id);
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const num = new Intl.NumberFormat('pt-BR');
+const dec = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const R = (v) => (v == null || isNaN(v) ? '—' : brl.format(v));
+const dataBR = (s) => (s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '—');
+const hojeBR = () => new Date(Date.now() - 3 * 3600e3);
+const faixa = (r) => (r == null ? '' : r >= 2 ? 'bom' : r >= 1 ? 'meio' : 'ruim');
+const guardar = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: (k) => { try { localStorage.removeItem(k); } catch {} } };
 
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const instalado = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  const suporta = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const st = { codigo: guardar.get('kc_codigo') || '', de: 0, ate: 0, dados: null, nivel: 'campanha', busca: '', ordem: 'lucro', carregando: false };
+try { const p = JSON.parse(guardar.get('kc_periodo') || '{}'); if (Number.isFinite(p.de)) { st.de = p.de; st.ate = p.ate; } } catch {}
 
-  const b64 = (s) => { const p = '='.repeat((4 - s.length % 4) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, (c) => c.charCodeAt(0)); };
+function tela(nome) {
+  $('tela-entrar').hidden = nome !== 'entrar';
+  $('tela-painel').hidden = nome !== 'painel';
+  $('tela-notif').hidden = nome !== 'notif';
+  $('nav').hidden = nome === 'entrar';
+  document.querySelectorAll('.nav button').forEach((b) => { if (b.dataset.tela === nome) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+}
 
-  async function mostrar() {
-    if (ios && !instalado) { $('instalar').hidden = false; return; }
-    if (!suporta) { $('ativar').hidden = false; $('btn').disabled = true; status('Este navegador não aceita notificações. No iPhone, atualize para o iOS 16.4 ou mais novo e abra pelo ícone da tela de início.', 'erro'); return; }
-    const reg = await navigator.serviceWorker.register('sw.js');
-    const sub = await reg.pushManager.getSubscription();
-    if (sub && Notification.permission === 'granted') $('pronto').hidden = false;
-    $('ativar').hidden = false;
-    if (sub) $('btn').textContent = 'Reativar neste aparelho';
+async function chamar(fn, body) {
+  const r = await fetch(BASE + fn, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.ok) { const e = new Error(j.erro || 'Falha na conexão'); e.status = r.status; throw e; }
+  return j;
+}
+
+async function carregar() {
+  if (st.carregando) return;
+  st.carregando = true;
+  $('painel').classList.add('esq');
+  $('recarregar').disabled = true;
+  try {
+    st.dados = await chamar('painel', { codigo: st.codigo, de: st.de, ate: st.ate });
+    $('erro-painel').hidden = true;
+    desenhar();
+    $('atualizado').textContent = 'atualizado ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    if (e.status === 403) { guardar.del('kc_codigo'); st.codigo = ''; tela('entrar'); return; }
+    $('erro-painel').textContent = 'Não foi possível atualizar agora (' + e.message + '). Os números abaixo podem estar desatualizados.';
+    $('erro-painel').hidden = false;
+  } finally {
+    st.carregando = false;
+    $('painel').classList.remove('esq');
+    $('recarregar').disabled = false;
   }
+}
 
-  $('btn').addEventListener('click', async () => {
-    const codigo = $('codigo').value.trim().toUpperCase();
-    if (!codigo) { status('Digite o código de acesso.', 'erro'); return; }
-    $('btn').disabled = true;
-    status('Ativando…');
-    try {
-      const perm = await Notification.requestPermission();
-      if (perm !== 'granted') throw new Error('Você não permitiu as notificações. Ative em Ajustes → Notificações → Central KC.');
-      const reg = await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
-      const r = await fetch(PUSH_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ acao: 'inscrever', codigo, subscription: sub.toJSON(), aparelho: navigator.userAgent }) });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.ok) throw new Error(j.erro || 'Não foi possível ativar. Tente de novo.');
-      status('Pronto! Você deve receber uma notificação de confirmação agora.', 'ok');
-      $('pronto').hidden = false;
-    } catch (e) {
-      status(e.message || String(e), 'erro');
-    } finally {
-      $('btn').disabled = false;
-    }
+function marcarPeriodo() {
+  const mes = hojeBR().getUTCDate() - 1;
+  let marcado = false;
+  document.querySelectorAll('#periodo .pill').forEach((b) => {
+    const on = !marcado && (b.dataset.mes ? st.de === mes && st.ate === 0 : Number(b.dataset.de) === st.de && Number(b.dataset.ate) === st.ate);
+    if (on) marcado = true;
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
+}
 
-  mostrar().catch((e) => status(String(e), 'erro'));
+const txt = (id, t, cls) => { const el = $(id); el.textContent = t; if (cls !== undefined) el.className = el.className.replace(/\b(pos-t|neg-t|bom-t|meio-t|ruim-t)\b/g, '').trim() + (cls ? ' ' + cls : ''); };
+const sinalT = (v) => (v > 0 ? 'pos-t' : v < 0 ? 'neg-t' : '');
+
+function desenhar() {
+  const d = st.dados; if (!d) return;
+  const a = (d.resumo || []).find((r) => r.periodo === 'atual') || {};
+  const b = (d.resumo || []).find((r) => r.periodo === 'anterior') || {};
+  marcarPeriodo();
+  $('t-periodo').textContent = a.desde === a.ate ? 'Lucro de ' + dataBR(a.desde) : 'Lucro de ' + dataBR(a.desde) + ' a ' + dataBR(a.ate);
+  txt('v-lucro', R(a.lucro), sinalT(a.lucro));
+  $('st-pos').hidden = !(a.lucro > 0); $('st-neg').hidden = !(a.lucro < 0);
+  $('c-lucro').classList.toggle('pos', a.lucro > 0); $('c-lucro').classList.toggle('neg', a.lucro < 0);
+  txt('q-fat', R(a.faturamento)); txt('q-imp', R(a.imposto)); txt('q-gasto', R(a.gasto)); txt('q-impm', R(a.imposto_meta)); txt('q-lucro', R(a.lucro), sinalT(a.lucro));
+  const max = Math.max(a.faturamento || 0, (a.imposto || 0) + (a.gasto || 0) + (a.imposto_meta || 0), 1);
+  const bar = (id, v, cor) => { $(id).style.width = Math.min(100, (Math.abs(v || 0) / max) * 100) + '%'; $(id).style.background = cor; };
+  bar('b-fat', a.faturamento, 'var(--ok)'); bar('b-imp', a.imposto, '#5A6676'); bar('b-gasto', a.gasto, 'var(--gas)'); bar('b-impm', a.imposto_meta, '#5A6676'); bar('b-lucro', a.lucro, a.lucro >= 0 ? 'var(--ok)' : 'var(--bad)');
+  txt('v-roas', a.roas == null ? '—' : dec.format(a.roas), faixa(a.roas) ? faixa(a.roas) + '-t' : '');
+  txt('roas-txt', a.roas == null ? '—' : R(a.roas));
+  const ag = $('agulha'); ag.hidden = a.roas == null; ag.style.left = 'calc(' + (Math.max(0, Math.min(3, a.roas || 0)) / 3) * 100 + '% - 2px)';
+  txt('v-vendas', num.format(a.aprovadas || 0)); txt('v-cpa', R(a.cpa)); txt('v-fat', R(a.faturamento)); txt('v-gasto', R(a.gasto)); txt('v-bruto', R(a.bruto));
+  txt('c-pend', num.format(a.pendentes || 0)); txt('c-rec', num.format(a.recusadas || 0)); txt('c-reemb', num.format(a.reembolsos || 0)); txt('c-sem', num.format(a.sem_rastreio || 0));
+  const tem = !!a.rastreio_desde && b.desde >= a.rastreio_desde;
+  const delta = (id, k, bom, fmt) => {
+    const el = $(id); el.classList.remove('bom', 'ruim');
+    if (!tem || a[k] == null || b[k] == null) { el.textContent = tem ? '' : 'sem vendas registradas no período anterior'; return; }
+    const v = Math.round((a[k] - b[k]) * 100) / 100;
+    el.textContent = (v > 0 ? '▲ +' : v < 0 ? '▼ −' : '') + fmt(Math.abs(v)) + ' vs período anterior';
+    if (v !== 0 && bom !== null) el.classList.add((v > 0) === bom ? 'bom' : 'ruim');
+  };
+  delta('d-lucro', 'lucro', true, (v) => brl.format(v)); delta('d-fat', 'faturamento', true, (v) => brl.format(v)); delta('d-gasto', 'gasto', null, (v) => brl.format(v));
+  delta('d-vendas', 'aprovadas', true, (v) => num.format(v)); delta('d-roas', 'roas', true, (v) => dec.format(v)); delta('d-cpa', 'cpa', false, (v) => brl.format(v));
+  grafico(); ranking(); produtos();
+}
+
+const compacto = (v) => (Math.abs(v) >= 1000 ? (v < 0 ? '−' : '') + 'R$ ' + (Math.abs(v) / 1000).toFixed(Math.abs(v) >= 10000 ? 0 : 1).replace('.', ',') + ' mil' : (v < 0 ? '−' : '') + 'R$ ' + Math.round(Math.abs(v)));
+function grafico() {
+  const svg = $('svg'), tip = $('tip'), el = $('grafico');
+  const rows = (st.dados && st.dados.diario) || [];
+  const s = d3.select(svg); s.selectAll('*').remove(); tip.hidden = true;
+  const W = Math.max(el.clientWidth, 280), H = 280;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  if (!rows.length) { s.append('text').attr('x', 8).attr('y', 24).text('Sem dias neste período.'); return; }
+  const lo = Math.min(0, ...rows.map((r) => r.lucro));
+  const hi = Math.max(1, ...rows.map((r) => Math.max(r.faturamento, r.gasto, r.lucro)));
+  const y = d3.scaleLinear().domain([lo, hi]).nice().range([H - 28, 10]);
+  const ticks = y.ticks(W < 520 ? 3 : 5);
+  const ml = 10 + Math.max(...ticks.map((t) => compacto(t).length)) * 6.6;
+  const x = d3.scaleBand().domain(rows.map((r) => r.dia)).range([ml, W - 6]).paddingInner(rows.length > 40 ? 0.1 : 0.25).paddingOuter(0.1);
+  const bw = x.bandwidth();
+  ticks.forEach((t) => {
+    s.append('line').attr('x1', ml).attr('x2', W - 6).attr('y1', y(t)).attr('y2', y(t)).style('stroke', t === 0 ? '#3A4756' : '#18212C');
+    s.append('text').attr('x', ml - 6).attr('y', y(t) + 4).attr('text-anchor', 'end').text(compacto(t));
+  });
+  const passo = Math.max(1, Math.ceil(rows.length / Math.max(1, Math.floor((W - ml) / 50))));
+  rows.forEach((r, i) => { if (i % passo === 0) s.append('text').attr('x', x(r.dia) + bw / 2).attr('y', H - 8).attr('text-anchor', 'middle').text(dataBR(r.dia)); });
+  const junto = rows.length > 45, meia = junto ? bw : bw / 2;
+  s.append('g').selectAll('rect').data(rows).join('rect').attr('x', (r) => x(r.dia)).attr('width', meia).attr('y', (r) => y(Math.max(0, r.faturamento))).attr('height', (r) => Math.max(0, y(0) - y(Math.max(0, r.faturamento)))).attr('rx', 2).style('fill', 'var(--ok)').style('opacity', 0.55);
+  s.append('g').selectAll('rect').data(rows).join('rect').attr('x', (r) => x(r.dia) + (junto ? 0 : meia)).attr('width', meia).attr('y', (r) => y(Math.max(0, r.gasto))).attr('height', (r) => Math.max(0, y(0) - y(Math.max(0, r.gasto)))).attr('rx', 2).style('fill', 'var(--gas)').style('opacity', junto ? 0.75 : 0.9);
+  s.append('path').datum(rows).attr('d', d3.line().x((r) => x(r.dia) + bw / 2).y((r) => y(r.lucro))).style('fill', 'none').style('stroke', 'var(--ink)').style('stroke-width', 2);
+  if (!junto) s.append('g').selectAll('circle').data(rows).join('circle').attr('cx', (r) => x(r.dia) + bw / 2).attr('cy', (r) => y(r.lucro)).attr('r', 3.5).style('fill', (r) => (r.lucro >= 0 ? 'var(--ok)' : 'var(--bad)')).style('stroke', 'var(--p)').style('stroke-width', 1.5);
+  const mostrar = (r) => {
+    const t = document.createElement('b'); t.textContent = r.dia.split('-').reverse().join('/');
+    tip.replaceChildren(t, ...[['Lucro', R(r.lucro)], ['Faturamento', R(r.faturamento)], ['Gasto Meta', R(r.gasto)], ['Vendas', num.format(r.vendas)]].map(([k, v], i) => { const dv = document.createElement('div'); const a = document.createElement('span'); a.textContent = k; const b = document.createElement('b'); b.textContent = v; if (i === 0) b.className = r.lucro >= 0 ? 'pos-t' : 'neg-t'; dv.append(a, b); return dv; }));
+    tip.hidden = false;
+    const tw = tip.offsetWidth || 170; tip.style.left = Math.max(0, Math.min(W - tw, x(r.dia) + bw / 2 - tw / 2)) + 'px';
+  };
+  s.append('g').selectAll('rect').data(rows).join('rect').attr('x', (r) => x(r.dia) - (x.step() - bw) / 2).attr('width', x.step()).attr('y', 0).attr('height', H).style('fill', 'transparent')
+    .on('pointerenter', (ev, r) => mostrar(r)).on('pointerdown', (ev, r) => mostrar(r)).on('pointerleave', () => { tip.hidden = true; });
+}
+
+const vazia = (tb, cols, t) => { const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = cols; td.textContent = t; tr.append(td); tb.replaceChildren(tr); };
+function filtrados() {
+  const q = st.busca.trim().toLowerCase();
+  return ((st.dados && st.dados.objetos) || []).filter((r) => r.nivel === st.nivel && (!q || String(r.nome || '').toLowerCase().includes(q) || String(r.campanha || '').toLowerCase().includes(q)))
+    .sort((a, b) => (b[st.ordem] ?? -Infinity) - (a[st.ordem] ?? -Infinity));
+}
+function ranking() {
+  const tb = $('ranking'); const todos = filtrados(); const rows = todos.slice(0, 100);
+  $('ranking-nota').textContent = todos.length > 100 ? 'Mostrando os 100 primeiros de ' + num.format(todos.length) + '. Use a busca para achar os outros.' : num.format(todos.length) + ' com gasto ou venda no período.';
+  if (!rows.length) { vazia(tb, 7, 'Nada com gasto ou venda neste período.'); return; }
+  const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r.lucro || 0)));
+  tb.replaceChildren(...rows.map((r) => {
+    const tr = document.createElement('tr');
+    const n = document.createElement('td'); n.append(document.createTextNode(r.nome || '(sem nome)'));
+    if (r.nivel !== 'campanha' && r.campanha) { const sp = document.createElement('span'); sp.className = 'camp'; sp.textContent = r.campanha; n.append(sp); }
+    tr.append(n);
+    const cel = (rot, t, cls) => { const td = document.createElement('td'); td.dataset.l = rot; td.textContent = t; if (cls) td.className = cls; tr.append(td); return td; };
+    const lc = cel('Lucro', R(r.lucro), sinalT(r.lucro));
+    const bar = document.createElement('span'); bar.className = 'lb'; bar.style.width = Math.max(2, (Math.abs(r.lucro || 0) / maxAbs) * 120) + 'px'; bar.style.background = r.lucro >= 0 ? 'var(--ok)' : 'var(--bad)'; lc.append(bar);
+    const rc = cel('ROAS', ''); const chip = document.createElement('span'); chip.className = 'rc ' + faixa(r.roas); chip.textContent = r.roas == null ? '—' : dec.format(r.roas); rc.append(chip);
+    cel('Gasto', R(r.gasto)); cel('Vendas', num.format(r.vendas)); cel('Faturamento', R(r.faturamento)); cel('CPA', r.cpa == null ? '—' : R(r.cpa));
+    return tr;
+  }));
+}
+function produtos() {
+  const tb = $('produtos'); const rows = (st.dados && st.dados.produtos) || [];
+  if (!rows.length) { vazia(tb, 3, 'Nenhuma venda aprovada neste período.'); return; }
+  const max = Math.max(1, ...rows.map((r) => r.faturamento));
+  tb.replaceChildren(...rows.map((r) => {
+    const tr = document.createElement('tr');
+    [r.produto, num.format(r.vendas), R(r.faturamento)].forEach((t, i) => { const td = document.createElement('td'); td.textContent = t; if (i === 2) { const b = document.createElement('span'); b.className = 'lb'; b.style.width = Math.max(2, (r.faturamento / max) * 120) + 'px'; b.style.background = 'var(--ok)'; td.append(b); } tr.append(td); });
+    return tr;
+  }));
+}
+
+// Eventos
+document.querySelectorAll('#periodo .pill').forEach((b) => b.addEventListener('click', () => {
+  if (b.dataset.mes) { st.de = hojeBR().getUTCDate() - 1; st.ate = 0; } else { st.de = Number(b.dataset.de); st.ate = Number(b.dataset.ate); }
+  guardar.set('kc_periodo', JSON.stringify({ de: st.de, ate: st.ate }));
+  marcarPeriodo(); carregar();
+}));
+document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { st.nivel = t.dataset.nivel; document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-selected', x === t ? 'true' : 'false')); ranking(); }));
+$('busca').addEventListener('input', (e) => { st.busca = e.target.value; ranking(); });
+$('ordem').addEventListener('change', (e) => { st.ordem = e.target.value; ranking(); });
+$('recarregar').addEventListener('click', () => carregar());
+document.querySelectorAll('.nav button').forEach((b) => b.addEventListener('click', () => { tela(b.dataset.tela); if (b.dataset.tela === 'painel') grafico(); }));
+new ResizeObserver(() => { if (!$('tela-painel').hidden) grafico(); }).observe($('grafico'));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && st.codigo && !$('tela-painel').hidden) carregar(); });
+setInterval(() => { if (document.visibilityState === 'visible' && st.codigo && !$('tela-painel').hidden) carregar(); }, 120000);
+
+$('btn-entrar').addEventListener('click', async () => {
+  const c = $('codigo-entrar').value.trim().toUpperCase();
+  if (!c) { $('status-entrar').textContent = 'Digite o código.'; $('status-entrar').className = 'status erro'; return; }
+  $('btn-entrar').disabled = true; $('status-entrar').textContent = 'Entrando…'; $('status-entrar').className = 'status';
+  try {
+    st.dados = await chamar('painel', { codigo: c, de: st.de, ate: st.ate });
+    st.codigo = c; guardar.set('kc_codigo', c);
+    tela('painel'); desenhar();
+    $('atualizado').textContent = 'atualizado ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch (e) { $('status-entrar').textContent = e.message; $('status-entrar').className = 'status erro'; }
+  finally { $('btn-entrar').disabled = false; }
+});
+$('codigo-entrar').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btn-entrar').click(); });
+$('sair').addEventListener('click', () => { guardar.del('kc_codigo'); st.codigo = ''; st.dados = null; tela('entrar'); });
+
+// Notificações
+const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const instalado = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const suporta = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const b64 = (s) => { const p = '='.repeat((4 - s.length % 4) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, (c) => c.charCodeAt(0)); };
+const stN = (t, cls) => { $('status-notif').textContent = t; $('status-notif').className = 'status ' + (cls || ''); };
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(async (reg) => {
+  const sub = suporta ? await reg.pushManager.getSubscription() : null;
+  if (sub && Notification.permission === 'granted') { stN('✅ Este aparelho já recebe as notificações.', 'ok'); $('btn-notif').textContent = 'Reativar neste aparelho'; }
+}).catch(() => {});
+if (ios && !instalado) $('instalar').hidden = false;
+if (!suporta) { $('btn-notif').disabled = true; stN(ios ? 'Abra a Central KC pelo ícone da tela de início para ativar (iOS 16.4 ou mais novo).' : 'Este navegador não aceita notificações.', 'erro'); }
+$('btn-notif').addEventListener('click', async () => {
+  $('btn-notif').disabled = true; stN('Ativando…');
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error('Notificações não permitidas. Ative em Ajustes → Notificações → Central KC.');
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
+    await chamar('push', { acao: 'inscrever', codigo: st.codigo, subscription: sub.toJSON(), aparelho: navigator.userAgent });
+    stN('Pronto! Deve chegar uma notificação de confirmação agora.', 'ok');
+  } catch (e) { stN(e.message || String(e), 'erro'); }
+  finally { $('btn-notif').disabled = false; }
+});
+
+// Início
+marcarPeriodo();
+if (st.codigo) { tela('painel'); carregar(); } else tela('entrar');
 }
 </script>
 </body>
