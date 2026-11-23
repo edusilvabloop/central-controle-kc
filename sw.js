@@ -1,5 +1,5 @@
 // Central de Controle · KC Cursos — service worker das notificações
-// v2 - painel
+// v3 - gestao
 const PAINEL = 'https://claude.ai/artifact/GL7N1igKBKVusHfB3z379M';
 
 self.addEventListener('install', () => self.skipWaiting());

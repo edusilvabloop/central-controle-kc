@@ -122,6 +122,29 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
 .status{font-size:14px;margin:10px 0 0;min-height:1.4em}
 .status.ok{color:var(--ok)}.status.erro{color:var(--bad)}
 .esq{opacity:.55;transition:opacity .2s}
+#ranking tr{cursor:pointer}
+#ranking tr:active{background:rgba(255,255,255,.04)}
+.seta{color:var(--mut);margin-left:6px}
+.fundo{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--p);border:1px solid var(--ln);border-bottom:0;border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:88vh;overflow:auto;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px);display:grid;gap:14px}
+.sheet h3{margin:0;font-size:18px;line-height:1.25}
+.sheet .sub{font-size:13px;color:var(--mut);margin:2px 0 0}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpis div{background:var(--p2);border:1px solid var(--ln);border-radius:12px;padding:8px 10px}
+.kpis b{display:block;font-size:16px}
+.estado{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+.badge{font-size:12.5px;font-weight:600;border-radius:999px;padding:3px 10px;background:var(--p2);border:1px solid var(--ln)}
+.badge.on{color:var(--ok);border-color:transparent;background:var(--oks)}.badge.off{color:var(--mut)}
+.grade{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.grade button,.acao{min-height:46px;border-radius:12px;border:1px solid var(--ln);background:var(--p2);color:var(--ink);font-weight:600}
+.acao.perigo{color:var(--bad);border-color:rgba(240,68,56,.4)}
+.acao.verde{color:var(--ok);border-color:rgba(34,197,94,.4)}
+.linha-orc{display:flex;gap:8px}
+.linha-orc input{flex:1;font:inherit;font-size:16px;min-height:46px;padding:0 12px;border-radius:12px;border:1px solid var(--ln);background:var(--p2);color:var(--ink)}
+.confirma{border:1px solid var(--warn);background:var(--warns);border-radius:12px;padding:12px;font-size:14px}
+.confirma .linha-orc{margin-top:10px}
+.msg{font-size:14px;margin:0}
+.msg.ok{color:var(--ok)}.msg.erro{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -251,6 +274,27 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
     </section>
     <button class="btn sec" id="sair" type="button">Sair deste aparelho</button>
   </section>
+</div>
+
+<div class="fundo" id="fundo" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-nome">
+    <div><h3 id="sh-nome">—</h3><p class="sub" id="sh-sub"></p></div>
+    <div class="kpis"><div><span class="lbl">Lucro</span><b id="sh-lucro">—</b></div><div><span class="lbl">Gasto</span><b id="sh-gasto">—</b></div><div><span class="lbl">Vendas · ROAS</span><b id="sh-vendas">—</b></div></div>
+    <p class="msg" id="sh-carregando">Consultando o Meta…</p>
+    <div id="sh-controles" hidden style="display:grid;gap:14px">
+      <div class="estado"><span>Situação no Meta</span><span class="badge" id="sh-status">—</span></div>
+      <button class="acao" id="sh-onoff" type="button">—</button>
+      <div id="sh-orc">
+        <div class="estado" style="margin-bottom:8px"><span>Orçamento <span id="sh-orc-tipo">diário</span></span><b id="sh-orc-valor">—</b></div>
+        <div class="grade"><button type="button" data-pct="-20">−20%</button><button type="button" data-pct="-10">−10%</button><button type="button" data-pct="10">+10%</button><button type="button" data-pct="20">+20%</button></div>
+        <div class="linha-orc" style="margin-top:8px"><input id="sh-orc-input" inputmode="decimal" placeholder="Novo valor em R$" aria-label="Novo orçamento em reais"><button class="acao" id="sh-orc-ok" type="button" style="padding:0 16px">Definir</button></div>
+      </div>
+      <p class="msg" id="sh-sem-orc" hidden></p>
+    </div>
+    <div class="confirma" id="sh-confirma" hidden><span id="sh-confirma-txt"></span><div class="linha-orc"><button class="acao verde" id="sh-sim" type="button" style="flex:1">Confirmar</button><button class="acao" id="sh-nao" type="button" style="flex:1">Cancelar</button></div></div>
+    <p class="msg" id="sh-msg" role="status"></p>
+    <button class="acao" id="sh-fechar" type="button">Fechar</button>
+  </div>
 </div>
 
 <nav class="nav" id="nav" hidden>
@@ -404,7 +448,9 @@ function ranking() {
   const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r.lucro || 0)));
   tb.replaceChildren(...rows.map((r) => {
     const tr = document.createElement('tr');
+    tr.addEventListener('click', () => abrirItem(r));
     const n = document.createElement('td'); n.append(document.createTextNode(r.nome || '(sem nome)'));
+    const seta = document.createElement('span'); seta.className = 'seta'; seta.textContent = '›'; n.append(seta);
     if (r.nivel !== 'campanha' && r.campanha) { const sp = document.createElement('span'); sp.className = 'camp'; sp.textContent = r.campanha; n.append(sp); }
     tr.append(n);
     const cel = (rot, t, cls) => { const td = document.createElement('td'); td.dataset.l = rot; td.textContent = t; if (cls) td.className = cls; tr.append(td); return td; };
@@ -425,6 +471,78 @@ function produtos() {
     return tr;
   }));
 }
+
+// Gestão de anúncios (pausar, ativar, orçamento)
+const NOMES = { campanha: 'Campanha', conjunto: 'Conjunto', anuncio: 'Anúncio' };
+const sh = { item: null, info: null, pendente: null, limite: 50 };
+const shMsg = (t, cls) => { $('sh-msg').textContent = t || ''; $('sh-msg').className = 'msg ' + (cls || ''); };
+function fecharItem() { $('fundo').hidden = true; sh.item = null; sh.pendente = null; }
+async function abrirItem(r) {
+  sh.item = r; sh.info = null; sh.pendente = null;
+  $('sh-nome').textContent = r.nome || '(sem nome)';
+  $('sh-sub').textContent = NOMES[r.nivel] + (r.nivel !== 'campanha' && r.campanha ? ' · ' + r.campanha : '');
+  txt('sh-lucro', R(r.lucro), sinalT(r.lucro)); txt('sh-gasto', R(r.gasto)); txt('sh-vendas', num.format(r.vendas) + ' · ' + (r.roas == null ? '—' : dec.format(r.roas)));
+  $('sh-controles').hidden = true; $('sh-confirma').hidden = true; $('sh-carregando').hidden = false; $('sh-carregando').textContent = 'Consultando o Meta…'; shMsg('');
+  $('fundo').hidden = false;
+  try {
+    const j = await chamar('acoes-meta', { codigo: st.codigo, acao: 'info', nivel: r.nivel, id: r.id });
+    if (sh.item !== r) return;
+    sh.info = j.item; sh.limite = j.limite_pct || 50;
+    mostrarInfo();
+  } catch (e) {
+    $('sh-carregando').textContent = e.message;
+  }
+}
+function mostrarInfo() {
+  const i = sh.info; if (!i) return;
+  $('sh-carregando').hidden = true; $('sh-controles').hidden = false;
+  const ativo = i.status === 'ACTIVE';
+  $('sh-status').textContent = ativo ? (i.veiculacao === 'ACTIVE' ? 'Ativo' : 'Ativo (' + String(i.veiculacao || '').toLowerCase().replace(/_/g, ' ') + ')') : 'Pausado';
+  $('sh-status').className = 'badge ' + (ativo ? 'on' : 'off');
+  $('sh-onoff').textContent = ativo ? '⏸ Pausar ' + NOMES[sh.item.nivel].toLowerCase() : '▶ Ativar ' + NOMES[sh.item.nivel].toLowerCase();
+  $('sh-onoff').className = 'acao ' + (ativo ? 'perigo' : 'verde');
+  const orc = i.orcamento_diario ?? i.orcamento_total;
+  $('sh-orc').hidden = orc == null || sh.item.nivel === 'anuncio';
+  $('sh-sem-orc').hidden = !(orc == null && sh.item.nivel !== 'anuncio');
+  $('sh-sem-orc').textContent = sh.item.nivel === 'conjunto' ? 'Este conjunto usa o orçamento da campanha (CBO). Para mudar o orçamento, abra a campanha.' : 'Esta campanha não tem orçamento próprio: ele fica nos conjuntos.';
+  $('sh-orc-tipo').textContent = i.orcamento_diario != null ? 'diário' : 'total';
+  $('sh-orc-valor').textContent = R(orc);
+}
+function pedirConfirmacao(acao, valor, texto) {
+  sh.pendente = { acao, valor };
+  $('sh-confirma-txt').textContent = texto;
+  $('sh-confirma').hidden = false; shMsg('');
+  $('sh-confirma').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+function pedirOrcamento(novo) {
+  const i = sh.info; const velho = i.orcamento_diario ?? i.orcamento_total;
+  novo = Math.round(novo * 100) / 100;
+  if (!(novo > 0)) { shMsg('Digite um valor válido.', 'erro'); return; }
+  const pct = (novo - velho) / velho * 100;
+  if (Math.abs(pct) > sh.limite + 0.01) { shMsg('Mudança de ' + Math.abs(pct).toFixed(0) + '% passa do limite de segurança de ' + sh.limite + '% por vez.', 'erro'); return; }
+  pedirConfirmacao('orcamento', novo, (pct >= 0 ? 'Aumentar' : 'Diminuir') + ' o orçamento ' + $('sh-orc-tipo').textContent + ' de ' + R(velho) + ' para ' + R(novo) + ' (' + (pct >= 0 ? '+' : '−') + Math.abs(pct).toFixed(0) + '%)?');
+}
+$('sh-onoff').addEventListener('click', () => {
+  const ativo = sh.info && sh.info.status === 'ACTIVE'; const r = sh.item;
+  pedirConfirmacao(ativo ? 'pausar' : 'ativar', null, (ativo ? 'Pausar ' : 'Ativar ') + NOMES[r.nivel].toLowerCase() + ' “' + (r.nome || '') + '”? No período: gasto ' + R(r.gasto) + ', ' + num.format(r.vendas) + ' vendas, lucro ' + R(r.lucro) + '.');
+});
+document.querySelectorAll('#sh-orc .grade button').forEach((b) => b.addEventListener('click', () => { const i = sh.info; const velho = i.orcamento_diario ?? i.orcamento_total; pedirOrcamento(velho * (1 + Number(b.dataset.pct) / 100)); }));
+$('sh-orc-ok').addEventListener('click', () => pedirOrcamento(Number(String($('sh-orc-input').value).replace(/[^\d,.]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'))));
+$('sh-nao').addEventListener('click', () => { sh.pendente = null; $('sh-confirma').hidden = true; });
+$('sh-sim').addEventListener('click', async () => {
+  const p = sh.pendente; if (!p || !sh.item) return;
+  $('sh-sim').disabled = true; shMsg('Enviando ao Meta…');
+  try {
+    const j = await chamar('acoes-meta', { codigo: st.codigo, acao: p.acao, nivel: sh.item.nivel, id: sh.item.id, valor: p.valor, aparelho: navigator.userAgent });
+    sh.info = j.item; sh.pendente = null; $('sh-confirma').hidden = true; $('sh-orc-input').value = '';
+    mostrarInfo();
+    shMsg(p.acao === 'pausar' ? '✅ Pausado no Meta.' : p.acao === 'ativar' ? '✅ Ativado no Meta.' : '✅ Orçamento atualizado no Meta.', 'ok');
+  } catch (e) { shMsg(e.message, 'erro'); }
+  finally { $('sh-sim').disabled = false; }
+});
+$('sh-fechar').addEventListener('click', fecharItem);
+$('fundo').addEventListener('click', (e) => { if (e.target === $('fundo')) fecharItem(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('fundo').hidden) fecharItem(); });
 
 // Eventos
 document.querySelectorAll('#periodo .pill').forEach((b) => b.addEventListener('click', () => {
