@@ -1,5 +1,5 @@
 // Central de Controle · KC Cursos — service worker das notificações
-// v4 - meta do dia
+// v5 - aba recuperar
 const PAINEL = 'https://claude.ai/artifact/GL7N1igKBKVusHfB3z379M';
 
 self.addEventListener('install', () => self.skipWaiting());

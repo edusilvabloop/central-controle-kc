@@ -155,6 +155,28 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
 .confirma .linha-orc{margin-top:10px}
 .msg{font-size:14px;margin:0}
 .msg.ok{color:var(--ok)}.msg.erro{color:var(--bad)}
+
+.rc-top{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.rc-top div{background:var(--p2);border:1px solid var(--ln);border-radius:12px;padding:8px 10px}
+.rc-top b{display:block;font-size:18px}
+.rc-lista{display:grid;gap:10px}
+.rc{background:var(--p);border:1px solid var(--ln);border-radius:16px;padding:14px;display:grid;gap:10px}
+.rc.feito{opacity:.6}
+.rc-l1>div:first-child{text-align:left;min-width:0}
+.rc-l1{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.rc-nome{font-weight:600;font-size:16px;line-height:1.25}
+.rc-sub{font-size:13px;color:var(--mut);margin-top:2px}
+.rc-val{font-weight:700;font-size:16px;white-space:nowrap}
+.rc-tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:12px;font-weight:600;border-radius:999px;padding:3px 9px;background:var(--p2);border:1px solid var(--ln);color:var(--mut)}
+.tag.pix{color:#5EEAD4;border-color:rgba(94,234,212,.35)}
+.tag.cartao{color:#FBBF24;border-color:rgba(251,191,36,.35)}
+.tag.quente{color:#F97316;border-color:rgba(249,115,22,.45)}
+.tag.ok{color:var(--ok);border-color:rgba(34,197,94,.4)}
+.rc-bts{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
+.rc-bts .acao{font-size:14px;min-height:44px;padding:0 8px}
+.wa{background:#1FAF55!important;color:#fff!important;border-color:#1FAF55!important}
+.filtros{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 </style>
 </head>
 <body>
@@ -283,6 +305,43 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
     </div>
   </section>
 
+
+  <!-- RECUPERAR -->
+  <section id="tela-recuperar" hidden>
+    <div style="display:grid;gap:14px" id="rc-wrap">
+      <section class="card">
+        <div class="cab"><h2>💸 Recuperar vendas</h2>
+          <label class="ordem"><select id="rc-dias" aria-label="Período"><option value="1">Últimas 24h</option><option value="3" selected>Últimos 3 dias</option><option value="7">Últimos 7 dias</option></select></label>
+        </div>
+        <div class="mval" id="rc-aberto" style="margin-top:10px">—</div>
+        <p class="lbl" style="margin:0">em pix e cartões que ainda não viraram venda</p>
+        <div class="rc-top">
+          <div><span class="lbl">Para chamar</span><b id="rc-n-ab">—</b></div>
+          <div><span class="lbl">Já chamados</span><b id="rc-n-ct">—</b></div>
+          <div><span class="lbl">Recuperados</span><b id="rc-n-rec">—</b></div>
+        </div>
+        <p class="lbl" id="rc-rec-txt" style="margin:10px 0 0"></p>
+      </section>
+      <div class="filtros" role="group" aria-label="Situação" id="rc-filtro">
+        <button type="button" class="pill" data-f="abertos" aria-pressed="true">Para chamar</button>
+        <button type="button" class="pill" data-f="contatados" aria-pressed="false">Já chamados</button>
+        <button type="button" class="pill" data-f="recuperados" aria-pressed="false">Recuperados ✅</button>
+        <button type="button" class="pill" data-f="ignorados" aria-pressed="false">Ignorados</button>
+      </div>
+      <div class="filtros" role="group" aria-label="Tipo" id="rc-tipo">
+        <button type="button" class="pill" data-t="todos" aria-pressed="true">Todos</button>
+        <button type="button" class="pill" data-t="pix" aria-pressed="false">Pix</button>
+        <button type="button" class="pill" data-t="cartao" aria-pressed="false">Cartão</button>
+      </div>
+      <p class="aviso erro" id="rc-erro" hidden></p>
+      <div class="rc-lista" id="rc-lista"></div>
+      <details>
+        <summary>Como funciona</summary>
+        <p>Aparecem aqui os pix gerados e não pagos e os cartões recusados, um por cliente e produto. Quem pagou depois (mesmo e-mail ou telefone) sai sozinho da lista e vai para Recuperados. Toque em <b>WhatsApp</b>: a conversa abre com a mensagem pronta (no pix, já com o código copia e cola), é só enviar. O contato fica marcado como chamado. Dica: chamar nas primeiras 2 horas recupera muito mais (🔥).</p>
+      </details>
+    </div>
+  </section>
+
   <!-- NOTIFICAÇÕES -->
   <section id="tela-notif" class="form" hidden>
     <section class="card" id="instalar" hidden>
@@ -328,6 +387,7 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
 
 <nav class="nav" id="nav" hidden>
   <button type="button" data-tela="painel" aria-current="page">📊 Painel</button>
+  <button type="button" data-tela="recuperar">💸 Recuperar</button>
   <button type="button" data-tela="notif">🔔 Notificações</button>
 </nav>
 
@@ -352,6 +412,7 @@ function tela(nome) {
   $('tela-entrar').hidden = nome !== 'entrar';
   $('tela-painel').hidden = nome !== 'painel';
   $('tela-notif').hidden = nome !== 'notif';
+  $('tela-recuperar').hidden = nome !== 'recuperar';
   $('nav').hidden = nome === 'entrar';
   document.querySelectorAll('.nav button').forEach((b) => { if (b.dataset.tela === nome) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
 }
@@ -629,10 +690,10 @@ document.querySelectorAll('#periodo .pill').forEach((b) => b.addEventListener('c
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { st.nivel = t.dataset.nivel; document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-selected', x === t ? 'true' : 'false')); ranking(); }));
 $('busca').addEventListener('input', (e) => { st.busca = e.target.value; ranking(); });
 $('ordem').addEventListener('change', (e) => { st.ordem = e.target.value; ranking(); });
-$('recarregar').addEventListener('click', () => carregar());
-document.querySelectorAll('.nav button').forEach((b) => b.addEventListener('click', () => { tela(b.dataset.tela); if (b.dataset.tela === 'painel') grafico(); }));
+$('recarregar').addEventListener('click', () => { if (!$('tela-recuperar').hidden) rcCarregar(); else carregar(); });
+document.querySelectorAll('.nav button').forEach((b) => b.addEventListener('click', () => { tela(b.dataset.tela); if (b.dataset.tela === 'painel') grafico(); if (b.dataset.tela === 'recuperar') rcCarregar(); }));
 new ResizeObserver(() => { if (!$('tela-painel').hidden) grafico(); }).observe($('grafico'));
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && st.codigo && !$('tela-painel').hidden) carregar(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible' || !st.codigo) return; if (!$('tela-painel').hidden) carregar(); if (!$('tela-recuperar').hidden) rcCarregar(); });
 setInterval(() => { if (document.visibilityState === 'visible' && st.codigo && !$('tela-painel').hidden) carregar(); }, 120000);
 
 $('btn-entrar').addEventListener('click', async () => {
@@ -675,6 +736,93 @@ $('btn-notif').addEventListener('click', async () => {
   } catch (e) { stN(e.message || String(e), 'erro'); }
   finally { $('btn-notif').disabled = false; }
 });
+
+
+// Recuperar
+const rc = { dados: null, filtro: 'abertos', tipo: 'todos', dias: 3 };
+const MOTIVO = { insufficient_funds: 'Sem limite/saldo', refused_bank: 'Recusado pelo banco', invalid_card: 'Dados do cartão errados', expired_card: 'Cartão vencido', suspected_fraud: 'Bloqueio de segurança', antifraud: 'Bloqueio do antifraude', do_not_honor: 'Banco não autorizou' };
+const primeiro = (n) => { const p = String(n || '').trim().split(/\s+/)[0] || ''; return p ? p[0].toUpperCase() + p.slice(1).toLowerCase() : ''; };
+const fone = (t) => { let d = String(t || '').replace(/\D/g, ''); if (d.length === 10 || d.length === 11) d = '55' + d; return d.length >= 12 ? d : ''; };
+const haQuanto = (iso) => { const m = Math.max(0, (Date.now() - new Date(iso)) / 60000); if (m < 60) return 'há ' + Math.round(m) + ' min'; const h = m / 60; if (h < 24) return 'há ' + Math.round(h) + 'h'; return 'há ' + Math.round(h / 24) + 'd'; };
+const pixValido = (i) => i.pix_code && (!i.pix_expira || new Date(i.pix_expira) > new Date());
+function rcSituacao(i) { return i.recuperado ? 'recuperados' : i.situacao === 'contatado' ? 'contatados' : i.situacao === 'ignorado' ? 'ignorados' : 'abertos'; }
+function rcMensagem(i) {
+  const n = primeiro(i.nome); const oi = n ? 'Oi, ' + n + '! ' : 'Oi! ';
+  const prod = i.produto || 'o curso';
+  if (i.tipo === 'pix' && pixValido(i)) {
+    return oi + 'Tudo bem? Aqui é da equipe da Karine Cybelle 💛\n\nVi que você gerou o pix do *' + prod + '*, mas ele ainda não foi pago. Sua vaga continua reservada!\n\nPra facilitar, aqui está o seu código pix copia e cola:\n\n' + i.pix_code + '\n\nSe ficou alguma dúvida sobre o curso, me chama aqui que eu te ajudo 😊';
+  }
+  if (i.tipo === 'pix') {
+    return oi + 'Tudo bem? Aqui é da equipe da Karine Cybelle 💛\n\nVi que você começou a garantir o *' + prod + '*, mas o pix não foi pago e já venceu. Se ainda quiser entrar, é só gerar um novo por aqui:\n' + (i.checkout || '') + '\n\nSe ficou alguma dúvida, me chama que eu te ajudo 😊';
+  }
+  const lim = i.motivo === 'insufficient_funds';
+  return oi + 'Tudo bem? Aqui é da equipe da Karine Cybelle 💛\n\nVi que você tentou garantir o *' + prod + '*, mas o pagamento no cartão não foi aprovado' + (lim ? ' (normalmente é o limite do cartão)' : ' (isso acontece bastante, geralmente é segurança do banco)') + '.\n\nVocê pode tentar de novo por aqui' + (lim ? ', com outro cartão, dividindo em 2 cartões ou no pix' : ', no pix ou com outro cartão') + ':\n' + (i.checkout || '') + '\n\nSe preferir, te ajudo por aqui mesmo 😊';
+}
+async function rcCarregar() {
+  $('rc-wrap').classList.add('esq');
+  try {
+    rc.dados = await chamar('recuperar', { codigo: st.codigo, acao: 'listar', dias: rc.dias });
+    $('rc-erro').hidden = true; rcDesenhar();
+  } catch (e) {
+    if (e.status === 403) { guardar.del('kc_codigo'); st.codigo = ''; tela('entrar'); return; }
+    $('rc-erro').textContent = 'Não foi possível carregar (' + e.message + ').'; $('rc-erro').hidden = false;
+  } finally { $('rc-wrap').classList.remove('esq'); }
+}
+function rcDesenhar() {
+  const d = rc.dados; if (!d) return;
+  const r = d.resumo || {};
+  $('rc-aberto').textContent = R(Number(r.valor_aberto));
+  $('rc-n-ab').textContent = num.format(r.abertos || 0);
+  $('rc-n-ct').textContent = num.format(r.contatados || 0);
+  $('rc-n-rec').textContent = num.format(r.recuperados || 0);
+  const pl = (n, a, b) => n + ' ' + (n === 1 ? a : b);
+  $('rc-rec-txt').textContent = (r.recuperados_apos_contato ? '🎉 ' + pl(r.recuperados_apos_contato, 'cliente pagou', 'clientes pagaram') + ' depois do nosso contato (' + R(Number(r.valor_recuperado_contato)) + '). ' : '') + (r.recuperados ? 'No total, ' + pl(r.recuperados, 'cliente do período já pagou', 'clientes do período já pagaram') + ' depois, com ou sem contato.' : '');
+  document.querySelectorAll('#rc-filtro .pill').forEach((b) => b.setAttribute('aria-pressed', b.dataset.f === rc.filtro ? 'true' : 'false'));
+  document.querySelectorAll('#rc-tipo .pill').forEach((b) => b.setAttribute('aria-pressed', b.dataset.t === rc.tipo ? 'true' : 'false'));
+  const itens = (d.itens || []).filter((i) => rcSituacao(i) === rc.filtro && (rc.tipo === 'todos' || i.tipo === rc.tipo));
+  const L = $('rc-lista'); L.textContent = '';
+  if (!itens.length) { const p = document.createElement('p'); p.className = 'nota'; p.textContent = rc.filtro === 'abertos' ? 'Ninguém para chamar agora. 👏' : 'Nada por aqui.'; L.append(p); return; }
+  for (const i of itens) L.append(rcCartao(i));
+}
+function el(tag, cls, t) { const e = document.createElement(tag); if (cls) e.className = cls; if (t != null) e.textContent = t; return e; }
+function rcCartao(i) {
+  const sit = rcSituacao(i);
+  const c = el('article', 'rc' + (sit === 'recuperados' || sit === 'ignorados' ? ' feito' : ''));
+  const l1 = el('div', 'rc-l1'); const esq = el('div');
+  esq.append(el('div', 'rc-nome', i.nome || '(sem nome)'), el('div', 'rc-sub', (i.produto || '') + ' · ' + haQuanto(i.criado_em)));
+  l1.append(esq, el('div', 'rc-val', R(Number(i.valor)))); c.append(l1);
+  const tags = el('div', 'rc-tags');
+  tags.append(el('span', 'tag ' + i.tipo, i.tipo === 'pix' ? 'Pix' : 'Cartão'));
+  const horas = (Date.now() - new Date(i.criado_em)) / 3600e3;
+  if (sit === 'abertos' && horas < 2) tags.append(el('span', 'tag quente', '🔥 Quente'));
+  if (i.tipo === 'cartao' && i.motivo) tags.append(el('span', 'tag', MOTIVO[i.motivo] || i.motivo));
+  if (i.tipo === 'pix') { if (pixValido(i)) { if (i.pix_expira) tags.append(el('span', 'tag', 'Pix vence ' + new Date(i.pix_expira).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }))); } else tags.append(el('span', 'tag', 'Pix vencido')); }
+  if (sit === 'contatados' && i.situacao_em) tags.append(el('span', 'tag', 'Chamado ' + haQuanto(i.situacao_em)));
+  if (sit === 'recuperados') tags.append(el('span', 'tag ok', i.situacao === 'contatado' ? '✅ Pagou após contato' : '✅ Pagou'));
+  c.append(tags);
+  if (sit === 'recuperados') return c;
+  const bts = el('div', 'rc-bts');
+  const tel = fone(i.telefone);
+  const wa = el('button', 'acao wa', tel ? (sit === 'contatados' ? '💬 Chamar de novo' : '💬 WhatsApp') : 'Sem telefone'); wa.type = 'button'; wa.disabled = !tel;
+  wa.addEventListener('click', () => { window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(rcMensagem(i)), '_blank'); rcMarcar(i, 'contatado', true); });
+  const cp = el('button', 'acao', i.tipo === 'pix' && pixValido(i) ? '📋 Pix' : '🔗 Link'); cp.type = 'button';
+  cp.disabled = !(i.tipo === 'pix' && pixValido(i)) && !i.checkout;
+  cp.addEventListener('click', async () => { const v = i.tipo === 'pix' && pixValido(i) ? i.pix_code : i.checkout; try { await navigator.clipboard.writeText(v); cp.textContent = '✅ Copiado'; } catch { prompt('Copie:', v); } setTimeout(() => { cp.textContent = i.tipo === 'pix' && pixValido(i) ? '📋 Pix' : '🔗 Link'; }, 1800); });
+  const ig = el('button', 'acao', sit === 'abertos' ? 'Ignorar' : 'Desfazer'); ig.type = 'button';
+  ig.addEventListener('click', () => rcMarcar(i, sit === 'abertos' ? 'ignorado' : null));
+  bts.append(wa, cp, ig); c.append(bts);
+  return c;
+}
+async function rcMarcar(i, situacao, silencioso) {
+  const antes = [i.situacao, i.situacao_em];
+  i.situacao = situacao; i.situacao_em = situacao ? new Date().toISOString() : null;
+  if (!silencioso) rcDesenhar(); else setTimeout(rcDesenhar, 600);
+  try { await chamar('recuperar', { codigo: st.codigo, acao: 'marcar', pedido_id: i.pedido_id, situacao }); const r = rc.dados.resumo; const it = rc.dados.itens.filter((x) => !x.recuperado); r.abertos = it.filter((x) => !x.situacao).length; r.contatados = it.filter((x) => x.situacao === 'contatado').length; rcDesenhar(); }
+  catch (e) { [i.situacao, i.situacao_em] = antes; rcDesenhar(); $('rc-erro').textContent = 'Não salvou: ' + e.message; $('rc-erro').hidden = false; }
+}
+document.querySelectorAll('#rc-filtro .pill').forEach((b) => b.addEventListener('click', () => { rc.filtro = b.dataset.f; rcDesenhar(); }));
+document.querySelectorAll('#rc-tipo .pill').forEach((b) => b.addEventListener('click', () => { rc.tipo = b.dataset.t; rcDesenhar(); }));
+$('rc-dias').addEventListener('change', (e) => { rc.dias = Number(e.target.value); rcCarregar(); });
 
 // Início
 marcarPeriodo();
