@@ -193,6 +193,11 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
 .dd .mn .tr span{display:block;height:100%;border-radius:4px}
 .cpix{background:#5EEAD4}.ccar{background:#FBBF24}
 .sub2{font-size:12px;color:var(--mut)}
+
+.per-custom{padding:12px 14px}
+.pc-linha{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pc-linha label{display:grid;gap:4px;font-size:13px;color:var(--mut)}
+.pc-linha input{font:inherit;font-size:16px;min-height:46px;padding:0 10px;border-radius:12px;border:1px solid var(--ln);background:var(--p2);color:var(--ink);color-scheme:dark;width:100%;min-width:0}
 </style>
 </head>
 <body>
@@ -226,6 +231,15 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
         <button type="button" class="pill" data-de="13" data-ate="0">14 dias</button>
         <button type="button" class="pill" data-de="29" data-ate="0">30 dias</button>
         <button type="button" class="pill" data-mes="1">Este mês</button>
+        <button type="button" class="pill" id="pill-custom" data-custom="1">📅 Escolher datas</button>
+      </div>
+      <div class="card per-custom" id="per-custom" hidden>
+        <div class="pc-linha">
+          <label>De<input type="date" id="pc-de" min="2025-01-16"></label>
+          <label>Até<input type="date" id="pc-ate" min="2025-01-16"></label>
+        </div>
+        <div class="linha-orc" style="margin-top:10px"><button class="acao verde" id="pc-ok" type="button" style="flex:1">Ver período</button><button class="acao" id="pc-cancelar" type="button" style="flex:1">Fechar</button></div>
+        <p class="msg erro" id="pc-erro" style="margin-top:8px" hidden></p>
       </div>
       <p class="aviso erro" id="erro-painel" hidden></p>
 
@@ -436,7 +450,11 @@ const faixa = (r) => (r == null ? '' : r >= 2 ? 'bom' : r >= 1 ? 'meio' : 'ruim'
 const guardar = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: (k) => { try { localStorage.removeItem(k); } catch {} } };
 
 const st = { codigo: guardar.get('kc_codigo') || '', de: 0, ate: 0, dados: null, nivel: 'campanha', busca: '', ordem: 'lucro', carregando: false };
-try { const p = JSON.parse(guardar.get('kc_periodo') || '{}'); if (Number.isFinite(p.de)) { st.de = p.de; st.ate = p.ate; } } catch {}
+try {
+  const p = JSON.parse(guardar.get('kc_periodo') || '{}');
+  if (p.d0) { const h = Date.parse(new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10) + 'T00:00:00Z'); const a = (y) => Math.round((h - Date.parse(y + 'T00:00:00Z')) / 86400e3); st.de = Math.min(800, a(p.d0)); st.ate = Math.max(0, a(p.d1)); }
+  else if (Number.isFinite(p.de)) { st.de = p.de; st.ate = p.ate; }
+} catch {}
 
 function tela(nome) {
   $('tela-entrar').hidden = nome !== 'entrar';
@@ -475,14 +493,21 @@ async function carregar() {
   }
 }
 
+const ymdBR = (atras) => new Date(hojeBR().getTime() - atras * 86400e3).toISOString().slice(0, 10);
+const atrasDe = (ymd) => Math.round((Date.parse(ymdBR(0) + 'T00:00:00Z') - Date.parse(ymd + 'T00:00:00Z')) / 86400e3);
 function marcarPeriodo() {
   const mes = hojeBR().getUTCDate() - 1;
   let marcado = false;
-  document.querySelectorAll('#periodo .pill').forEach((b) => {
+  document.querySelectorAll('#periodo .pill:not([data-custom])').forEach((b) => {
     const on = !marcado && (b.dataset.mes ? st.de === mes && st.ate === 0 : Number(b.dataset.de) === st.de && Number(b.dataset.ate) === st.ate);
     if (on) marcado = true;
     b.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
+  const pc = $('pill-custom');
+  pc.setAttribute('aria-pressed', marcado ? 'false' : 'true');
+  const br = (y) => y.slice(8, 10) + '/' + y.slice(5, 7);
+  if (!marcado) requestAnimationFrame(() => { $('periodo').scrollLeft = $('periodo').scrollWidth; });
+  pc.textContent = marcado ? '📅 Escolher datas' : '📅 ' + (st.de === st.ate ? br(ymdBR(st.de)) : br(ymdBR(st.de)) + ' a ' + br(ymdBR(st.ate)));
 }
 
 const txt = (id, t, cls) => { const el = $(id); el.textContent = t; if (cls !== undefined) el.className = el.className.replace(/\b(pos-t|neg-t|bom-t|meio-t|ruim-t)\b/g, '').trim() + (cls ? ' ' + cls : ''); };
@@ -713,10 +738,32 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('fund
 
 // Eventos
 document.querySelectorAll('#periodo .pill').forEach((b) => b.addEventListener('click', () => {
+  if (b.dataset.custom) {
+    const abrir = $('per-custom').hidden;
+    $('per-custom').hidden = !abrir; $('pc-erro').hidden = true;
+    if (abrir) { const hoje = ymdBR(0); $('pc-de').max = hoje; $('pc-ate').max = hoje; $('pc-de').value = ymdBR(st.de); $('pc-ate').value = ymdBR(st.ate); }
+    return;
+  }
+  $('per-custom').hidden = true;
   if (b.dataset.mes) { st.de = hojeBR().getUTCDate() - 1; st.ate = 0; } else { st.de = Number(b.dataset.de); st.ate = Number(b.dataset.ate); }
   guardar.set('kc_periodo', JSON.stringify({ de: st.de, ate: st.ate }));
   marcarPeriodo(); carregar();
 }));
+
+$('pc-cancelar').addEventListener('click', () => { $('per-custom').hidden = true; });
+$('pc-de').addEventListener('change', () => { if ($('pc-ate').value && $('pc-ate').value < $('pc-de').value) $('pc-ate').value = $('pc-de').value; });
+$('pc-ok').addEventListener('click', () => {
+  const d0 = $('pc-de').value, d1 = $('pc-ate').value || $('pc-de').value;
+  const erro = (t) => { $('pc-erro').textContent = t; $('pc-erro').hidden = false; };
+  if (!d0) return erro('Escolha a data de início.');
+  if (d1 < d0) return erro('A data final não pode ser antes da inicial.');
+  const de = atrasDe(d0), ate = atrasDe(d1);
+  if (ate < 0) return erro('Escolha datas até hoje.');
+  if (de > 800) return erro('O histórico começa em 16/01/2025.');
+  st.de = de; st.ate = ate;
+  guardar.set('kc_periodo', JSON.stringify({ d0, d1 }));
+  $('per-custom').hidden = true; marcarPeriodo(); carregar();
+});
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { st.nivel = t.dataset.nivel; document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-selected', x === t ? 'true' : 'false')); ranking(); }));
 $('busca').addEventListener('input', (e) => { st.busca = e.target.value; ranking(); });
 $('ordem').addEventListener('change', (e) => { st.ordem = e.target.value; ranking(); });

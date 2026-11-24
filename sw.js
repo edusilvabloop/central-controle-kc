@@ -1,5 +1,5 @@
 // Central de Controle · KC Cursos — service worker das notificações
-// v6 - taxa de recuperacao
+// v7 - periodo personalizado
 const PAINEL = 'https://claude.ai/artifact/GL7N1igKBKVusHfB3z379M';
 
 self.addEventListener('install', () => self.skipWaiting());
