@@ -177,6 +177,22 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
 .rc-bts .acao{font-size:14px;min-height:44px;padding:0 8px}
 .wa{background:#1FAF55!important;color:#fff!important;border-color:#1FAF55!important}
 .filtros{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+
+.tx-big{display:flex;align-items:baseline;gap:10px;margin:10px 0 4px}
+.tx-big b{font-size:clamp(30px,8vw,40px);line-height:1}
+.tx2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.tx2 .mbox b{font-size:22px;display:block}
+.hb{display:grid;grid-template-columns:92px 1fr 34px;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+.hb .tr{height:10px;border-radius:5px;background:#0A0F15;overflow:hidden}
+.hb .tr span{display:block;height:100%;border-radius:5px;background:var(--ok)}
+.hb .n{text-align:right;color:var(--mut)}
+.dd{display:grid;grid-template-columns:44px 1fr 1fr;gap:10px;align-items:center;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--ln)}
+.dd:last-child{border-bottom:0}
+.dd .mn{display:grid;gap:3px}
+.dd .mn .tr{height:7px;border-radius:4px;background:#0A0F15;overflow:hidden}
+.dd .mn .tr span{display:block;height:100%;border-radius:4px}
+.cpix{background:#5EEAD4}.ccar{background:#FBBF24}
+.sub2{font-size:12px;color:var(--mut)}
 </style>
 </head>
 <body>
@@ -321,6 +337,20 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
           <div><span class="lbl">Recuperados</span><b id="rc-n-rec">—</b></div>
         </div>
         <p class="lbl" id="rc-rec-txt" style="margin:10px 0 0"></p>
+      </section>
+      <section class="card" id="rc-taxa">
+        <div class="cab"><h2>📈 Taxa de recuperação</h2><span class="lbl" id="tx-per"></span></div>
+        <div class="tx-big"><b id="tx-geral">—</b><span class="lbl" id="tx-geral-txt"></span></div>
+        <div class="tx2">
+          <div class="mbox"><span class="lbl">Pix</span><b id="tx-pix" style="color:#5EEAD4">—</b><span class="sub2" id="tx-pix-txt"></span></div>
+          <div class="mbox"><span class="lbl">Cartão</span><b id="tx-car" style="color:#FBBF24">—</b><span class="sub2" id="tx-car-txt"></span></div>
+        </div>
+        <h3 style="font-size:15px;margin:16px 0 4px">Tempo até pagar</h3>
+        <p class="lbl" id="tx-med" style="margin:0 0 6px"></p>
+        <div id="tx-tempo"></div>
+        <h3 style="font-size:15px;margin:16px 0 4px">Por dia (últimos 14)</h3>
+        <p class="sub2" style="margin:0 0 6px"><span style="color:#5EEAD4">■</span> Pix &nbsp; <span style="color:#FBBF24">■</span> Cartão · os dias mais recentes ainda podem subir</p>
+        <div id="tx-dias"></div>
       </section>
       <div class="filtros" role="group" aria-label="Situação" id="rc-filtro">
         <button type="button" class="pill" data-f="abertos" aria-pressed="true">Para chamar</button>
@@ -758,11 +788,39 @@ function rcMensagem(i) {
   const lim = i.motivo === 'insufficient_funds';
   return oi + 'Tudo bem? Aqui é da equipe da Karine Cybelle 💛\n\nVi que você tentou garantir o *' + prod + '*, mas o pagamento no cartão não foi aprovado' + (lim ? ' (normalmente é o limite do cartão)' : ' (isso acontece bastante, geralmente é segurança do banco)') + '.\n\nVocê pode tentar de novo por aqui' + (lim ? ', com outro cartão, dividindo em 2 cartões ou no pix' : ', no pix ou com outro cartão') + ':\n' + (i.checkout || '') + '\n\nSe preferir, te ajudo por aqui mesmo 😊';
 }
+
+function txDesenhar() {
+  const t = rc.dados && rc.dados.taxa; if (!t) { $('rc-taxa').hidden = true; return; }
+  $('rc-taxa').hidden = false;
+  const pc = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  const P = t.periodo || {};
+  $('tx-per').textContent = $('rc-dias').selectedOptions[0].textContent;
+  $('tx-geral').textContent = pc(P.recuperados, P.total) + '%';
+  $('tx-geral-txt').textContent = (P.recuperados || 0) + ' de ' + (P.total || 0) + ' pagaram depois';
+  $('tx-pix').textContent = pc(P.pix_rec, P.pix_total) + '%'; $('tx-pix-txt').textContent = (P.pix_rec || 0) + ' de ' + (P.pix_total || 0) + ' pix gerados';
+  $('tx-car').textContent = pc(P.cartao_rec, P.cartao_total) + '%'; $('tx-car-txt').textContent = (P.cartao_rec || 0) + ' de ' + (P.cartao_total || 0) + ' recusados';
+  const T = t.tempo || {};
+  const faixas = [['Até 15 min', T.ate_15min], ['15 min a 1h', T.ate_1h], ['1h a 6h', T.ate_6h], ['6h a 24h', T.ate_24h], ['Mais de 24h', T.mais_24h]];
+  const tot = faixas.reduce((a, f) => a + (f[1] || 0), 0); const mx = Math.max(1, ...faixas.map((f) => f[1] || 0));
+  const med = T.mediana_min;
+  $('tx-med').textContent = tot ? 'Metade de quem voltou pagou em até ' + (med < 60 ? med + ' min' : Math.round(med / 60) + 'h') + '.' : 'Ninguém voltou a pagar no período.';
+  const box = $('tx-tempo'); box.textContent = '';
+  for (const [nome, n] of faixas) { const r = el('div', 'hb'); const tr = el('div', 'tr'); const sp = el('span'); sp.style.width = ((n || 0) / mx * 100) + '%'; tr.append(sp); r.append(el('span', '', nome), tr, el('span', 'n', String(n || 0))); box.append(r); }
+  const dd = $('tx-dias'); dd.textContent = '';
+  for (const d of (t.dias || []).slice().reverse()) {
+    const r = el('div', 'dd'); r.append(el('b', '', d.dia.slice(8, 10) + '/' + d.dia.slice(5, 7)));
+    for (const [rec, tt, cls] of [[d.pix_rec, d.pix_total, 'cpix'], [d.cartao_rec, d.cartao_total, 'ccar']]) {
+      const m = el('div', 'mn'); m.append(el('span', '', tt ? pc(rec, tt) + '% · ' + rec + '/' + tt : '—'));
+      const tr = el('div', 'tr'); const sp = el('span', cls); sp.style.width = pc(rec, tt) + '%'; tr.append(sp); m.append(tr); r.append(m);
+    }
+    dd.append(r);
+  }
+}
 async function rcCarregar() {
   $('rc-wrap').classList.add('esq');
   try {
     rc.dados = await chamar('recuperar', { codigo: st.codigo, acao: 'listar', dias: rc.dias });
-    $('rc-erro').hidden = true; rcDesenhar();
+    $('rc-erro').hidden = true; rcDesenhar(); txDesenhar();
   } catch (e) {
     if (e.status === 403) { guardar.del('kc_codigo'); st.codigo = ''; tela('entrar'); return; }
     $('rc-erro').textContent = 'Não foi possível carregar (' + e.message + ').'; $('rc-erro').hidden = false;
