@@ -122,6 +122,16 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
 .status{font-size:14px;margin:10px 0 0;min-height:1.4em}
 .status.ok{color:var(--ok)}.status.erro{color:var(--bad)}
 .esq{opacity:.55;transition:opacity .2s}
+.meta{border-color:#2A3A2E;background:linear-gradient(180deg,rgba(34,197,94,.07),var(--p) 60%)}
+.metas{display:grid;grid-template-columns:1fr 1.4fr;gap:12px;margin-top:12px}
+@media(max-width:640px){.metas{grid-template-columns:1fr}}
+.mbox{background:var(--p2);border:1px solid var(--ln);border-radius:14px;padding:12px 14px}
+.mtop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mval{font-size:clamp(26px,6vw,34px);font-weight:700;line-height:1.1;margin:8px 0 6px;white-space:nowrap}
+.mval small{font-size:15px;font-weight:500;color:var(--mut)}
+.mbar{height:10px;border-radius:5px;background:#0A0F15;overflow:hidden;margin:6px 0 8px}
+.mbar span{display:block;height:100%;border-radius:5px;background:var(--ok);transition:width .6s ease-out}
+.st.wait{background:var(--warns);color:var(--warn)}
 #ranking tr{cursor:pointer}
 #ranking tr:active{background:rgba(255,255,255,.04)}
 .seta{color:var(--mut);margin-left:6px}
@@ -180,6 +190,24 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
         <button type="button" class="pill" data-mes="1">Este mês</button>
       </div>
       <p class="aviso erro" id="erro-painel" hidden></p>
+
+      <section class="card meta" id="c-meta">
+        <div class="cab"><h2>🎯 Meta do dia</h2><span class="lbl" id="m-periodo"></span></div>
+        <div class="metas">
+          <div class="mbox" id="m1">
+            <div class="mtop"><span class="lbl">Meta 01 · ROAS de <b id="m1-alvo">5</b> ou mais</span><span class="st" id="m1-st">—</span></div>
+            <div class="mval" id="m1-val">—</div>
+            <p class="lbl" id="m1-txt"></p>
+          </div>
+          <div class="mbox" id="m2">
+            <div class="mtop"><span class="lbl">Meta 02 · Faturamento</span><span class="st" id="m2-st">—</span></div>
+            <div class="mval"><span id="m2-real">—</span> <small>de <span id="m2-meta">—</span></small></div>
+            <div class="mbar"><span id="m2-bar"></span></div>
+            <p class="lbl" id="m2-txt"></p>
+          </div>
+        </div>
+        <p class="lbl" id="m-base" style="margin:10px 0 0"></p>
+      </section>
 
       <section class="hero">
         <div class="card lucro" id="c-lucro">
@@ -287,6 +315,7 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
       <div id="sh-orc">
         <div class="estado" style="margin-bottom:8px"><span>Orçamento <span id="sh-orc-tipo">diário</span></span><b id="sh-orc-valor">—</b></div>
         <div class="grade"><button type="button" data-pct="-20">−20%</button><button type="button" data-pct="-10">−10%</button><button type="button" data-pct="10">+10%</button><button type="button" data-pct="20">+20%</button></div>
+        <p class="lbl" id="sh-orc-ult" style="margin:8px 0 0"></p>
         <div class="linha-orc" style="margin-top:8px"><input id="sh-orc-input" inputmode="decimal" placeholder="Novo valor em R$" aria-label="Novo orçamento em reais"><button class="acao" id="sh-orc-ok" type="button" style="padding:0 16px">Definir</button></div>
       </div>
       <p class="msg" id="sh-sem-orc" hidden></p>
@@ -396,7 +425,47 @@ function desenhar() {
   };
   delta('d-lucro', 'lucro', true, (v) => brl.format(v)); delta('d-fat', 'faturamento', true, (v) => brl.format(v)); delta('d-gasto', 'gasto', null, (v) => brl.format(v));
   delta('d-vendas', 'aprovadas', true, (v) => num.format(v)); delta('d-roas', 'roas', true, (v) => dec.format(v)); delta('d-cpa', 'cpa', false, (v) => brl.format(v));
+  metaCard(a);
   grafico(); ranking(); produtos();
+}
+
+function metaCard(a) {
+  const m = st.dados && st.dados.meta;
+  const hoje = st.de === 0 && st.ate === 0;
+  const alvo = (m && m.roas_alvo) || 5;
+  $('m-periodo').textContent = hoje ? 'Hoje, até ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : (a.desde === a.ate ? dataBR(a.desde) : dataBR(a.desde) + ' a ' + dataBR(a.ate));
+  // Meta 01: ROAS
+  $('m1-alvo').textContent = dec.format(alvo).replace(',00', '');
+  const roas = a.roas;
+  txt('m1-val', roas == null ? '—' : dec.format(roas), roas == null ? '' : roas >= alvo ? 'pos-t' : 'neg-t');
+  const s1 = $('m1-st');
+  if (roas == null) { s1.textContent = 'sem gasto'; s1.className = 'st wait'; $('m1-txt').textContent = ''; }
+  else if (roas >= alvo) { s1.textContent = '✅ Batendo'; s1.className = 'st pos'; $('m1-txt').textContent = 'A cada R$ 1 investido voltaram ' + R(roas) + '. Margem de ' + dec.format(roas - alvo) + ' acima da meta.'; }
+  else { s1.textContent = '⚠️ Abaixo'; s1.className = 'st neg'; $('m1-txt').textContent = 'Faltam ' + dec.format(alvo - roas) + ' de ROAS. Para bater, o CPA precisa ficar em até ' + R(a.aprovadas ? (a.faturamento / a.aprovadas) / alvo : null) + '.'; }
+  // Meta 02: faturamento = investimento previsto × ROAS alvo
+  const inv = m ? Number(m.investimento_previsto) : 0;
+  const metaFat = m ? Number(m.meta_faturamento) : 0;
+  const s2 = $('m2-st');
+  if (!inv) {
+    $('m2-real').textContent = R(a.faturamento); $('m2-meta').textContent = '—'; $('m2-bar').style.width = '0%';
+    s2.textContent = 'sem orçamento'; s2.className = 'st wait';
+    $('m2-txt').textContent = 'O orçamento previsto começou a ser registrado em 24/11. Escolha Hoje para ver a meta.';
+    $('m-base').textContent = '';
+    return;
+  }
+  const pct = Math.max(0, (a.faturamento / metaFat) * 100);
+  $('m2-real').textContent = R(a.faturamento); $('m2-meta').textContent = R(metaFat);
+  $('m2-bar').style.width = Math.min(100, pct) + '%';
+  $('m2-bar').style.background = pct >= 100 ? 'var(--ok)' : pct >= 60 ? 'var(--warn)' : 'var(--gas)';
+  if (pct >= 100) { s2.textContent = '✅ Batida'; s2.className = 'st pos'; }
+  else { s2.textContent = num.format(Math.floor(pct)) + '%'; s2.className = 'st wait'; }
+  const falta = Math.max(0, metaFat - a.faturamento);
+  let t = pct >= 100 ? 'Meta batida! ' + R(a.faturamento - metaFat) + ' acima.' : 'Faltam ' + R(falta) + '.';
+  if (hoje && roas != null && pct < 100) t += ' No ROAS de agora, o dia fecha perto de ' + R(roas * inv) + '.';
+  if (!hoje && pct < 100) t = 'Ficou ' + R(falta) + ' abaixo da meta (' + num.format(Math.floor(pct)) + '%).';
+  $('m2-txt').textContent = t;
+  const parcial = m.dias_com_orcamento < m.dias_periodo ? ' (orçamento registrado em ' + m.dias_com_orcamento + ' de ' + m.dias_periodo + ' dias)' : '';
+  $('m-base').textContent = 'Investimento previsto ' + R(inv) + ' × ROAS ' + dec.format(alvo).replace(',00', '') + ' = meta de ' + R(metaFat) + parcial + ' · já investido ' + R(a.gasto) + ' (' + num.format(Math.round((a.gasto / inv) * 100)) + '% do previsto).';
 }
 
 const compacto = (v) => (Math.abs(v) >= 1000 ? (v < 0 ? '−' : '') + 'R$ ' + (Math.abs(v) / 1000).toFixed(Math.abs(v) >= 10000 ? 0 : 1).replace('.', ',') + ' mil' : (v < 0 ? '−' : '') + 'R$ ' + Math.round(Math.abs(v)));
@@ -474,7 +543,7 @@ function produtos() {
 
 // Gestão de anúncios (pausar, ativar, orçamento)
 const NOMES = { campanha: 'Campanha', conjunto: 'Conjunto', anuncio: 'Anúncio' };
-const sh = { item: null, info: null, pendente: null, limite: 50 };
+const sh = { item: null, info: null, pendente: null, limite: 50, ult: null, intervalo: 48 };
 const shMsg = (t, cls) => { $('sh-msg').textContent = t || ''; $('sh-msg').className = 'msg ' + (cls || ''); };
 function fecharItem() { $('fundo').hidden = true; sh.item = null; sh.pendente = null; }
 async function abrirItem(r) {
@@ -487,7 +556,7 @@ async function abrirItem(r) {
   try {
     const j = await chamar('acoes-meta', { codigo: st.codigo, acao: 'info', nivel: r.nivel, id: r.id });
     if (sh.item !== r) return;
-    sh.info = j.item; sh.limite = j.limite_pct || 50;
+    sh.info = j.item; sh.limite = j.limite_pct || 50; sh.ult = j.ultima_mudanca || null; sh.intervalo = j.intervalo_h || 48;
     mostrarInfo();
   } catch (e) {
     $('sh-carregando').textContent = e.message;
@@ -507,9 +576,15 @@ function mostrarInfo() {
   $('sh-sem-orc').textContent = sh.item.nivel === 'conjunto' ? 'Este conjunto usa o orçamento da campanha (CBO). Para mudar o orçamento, abra a campanha.' : 'Esta campanha não tem orçamento próprio: ele fica nos conjuntos.';
   $('sh-orc-tipo').textContent = i.orcamento_diario != null ? 'diário' : 'total';
   $('sh-orc-valor').textContent = R(orc);
+  const u = $('sh-orc-ult');
+  if (sh.ult) {
+    const recente = sh.ult.horas < sh.intervalo;
+    u.textContent = (recente ? '⚠️ ' : '') + 'Último ajuste pela Central: há ' + (sh.ult.horas < 1 ? 'menos de 1h' : sh.ult.horas + 'h') + (recente ? ' — sua regra é esperar 2–3 dias.' : '.');
+    u.className = 'lbl' + (recente ? ' meio-t' : '');
+  } else { u.textContent = 'Sem ajuste de orçamento pela Central registrado.'; u.className = 'lbl'; }
 }
 function pedirConfirmacao(acao, valor, texto) {
-  sh.pendente = { acao, valor };
+  sh.pendente = { acao, valor, forcar: acao === 'orcamento' && !!(sh.ult && sh.ult.horas < sh.intervalo) };
   $('sh-confirma-txt').textContent = texto;
   $('sh-confirma').hidden = false; shMsg('');
   $('sh-confirma').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -520,7 +595,8 @@ function pedirOrcamento(novo) {
   if (!(novo > 0)) { shMsg('Digite um valor válido.', 'erro'); return; }
   const pct = (novo - velho) / velho * 100;
   if (Math.abs(pct) > sh.limite + 0.01) { shMsg('Mudança de ' + Math.abs(pct).toFixed(0) + '% passa do limite de segurança de ' + sh.limite + '% por vez.', 'erro'); return; }
-  pedirConfirmacao('orcamento', novo, (pct >= 0 ? 'Aumentar' : 'Diminuir') + ' o orçamento ' + $('sh-orc-tipo').textContent + ' de ' + R(velho) + ' para ' + R(novo) + ' (' + (pct >= 0 ? '+' : '−') + Math.abs(pct).toFixed(0) + '%)?');
+  const cedo = sh.ult && sh.ult.horas < sh.intervalo;
+  pedirConfirmacao('orcamento', novo, (cedo ? '⚠️ O último ajuste foi há ' + sh.ult.horas + 'h (regra: 2–3 dias). ' : '') + (pct >= 0 ? 'Aumentar' : 'Diminuir') + ' o orçamento ' + $('sh-orc-tipo').textContent + ' de ' + R(velho) + ' para ' + R(novo) + ' (' + (pct >= 0 ? '+' : '−') + Math.abs(pct).toFixed(0) + '%)?');
 }
 $('sh-onoff').addEventListener('click', () => {
   const ativo = sh.info && sh.info.status === 'ACTIVE'; const r = sh.item;
@@ -533,8 +609,8 @@ $('sh-sim').addEventListener('click', async () => {
   const p = sh.pendente; if (!p || !sh.item) return;
   $('sh-sim').disabled = true; shMsg('Enviando ao Meta…');
   try {
-    const j = await chamar('acoes-meta', { codigo: st.codigo, acao: p.acao, nivel: sh.item.nivel, id: sh.item.id, valor: p.valor, aparelho: navigator.userAgent });
-    sh.info = j.item; sh.pendente = null; $('sh-confirma').hidden = true; $('sh-orc-input').value = '';
+    const j = await chamar('acoes-meta', { codigo: st.codigo, acao: p.acao, nivel: sh.item.nivel, id: sh.item.id, valor: p.valor, forcar: p.forcar, aparelho: navigator.userAgent });
+    sh.info = j.item; if (j.ultima_mudanca) sh.ult = j.ultima_mudanca; sh.pendente = null; $('sh-confirma').hidden = true; $('sh-orc-input').value = '';
     mostrarInfo();
     shMsg(p.acao === 'pausar' ? '✅ Pausado no Meta.' : p.acao === 'ativar' ? '✅ Ativado no Meta.' : '✅ Orçamento atualizado no Meta.', 'ok');
   } catch (e) { shMsg(e.message, 'erro'); }
