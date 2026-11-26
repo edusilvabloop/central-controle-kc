@@ -326,9 +326,9 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
             <button type="button" role="tab" class="tab" data-nivel="anuncio" aria-selected="false">Anúncios</button>
           </div>
           <input type="search" class="busca" id="busca" placeholder="Buscar (ex.: GOLD, HardSell)" aria-label="Buscar por nome">
-          <label class="ordem">Ordenar por <select id="ordem"><option value="lucro">Lucro</option><option value="gasto">Gasto</option><option value="vendas">Vendas</option><option value="roas">ROAS</option><option value="faturamento">Faturamento</option><option value="checkouts">Finalizações</option><option value="ctr">CTR</option><option value="freq">Frequência</option></select></label>
+          <label class="ordem">Ordenar por <select id="ordem"><option value="lucro">Lucro</option><option value="gasto">Gasto</option><option value="vendas">Vendas</option><option value="roas">ROAS</option><option value="faturamento">Faturamento</option><option value="checkouts">IC</option><option value="ctr">CTR</option><option value="freq">Frequência</option></select></label>
         </div>
-        <div class="scroll"><table class="stack"><thead><tr><th>Nome</th><th>Lucro</th><th>ROAS</th><th>Gasto</th><th>Vendas</th><th>Faturamento</th><th>CPA</th><th>CPI</th><th>Finalizações</th><th>CTR</th><th>CPM</th><th>Frequência</th></tr></thead><tbody id="ranking"></tbody></table></div>
+        <div class="scroll"><table class="stack"><thead><tr><th>Nome</th><th>Lucro</th><th>ROAS</th><th>Gasto</th><th>Vendas</th><th>Faturamento</th><th>CPA</th><th>CPI</th><th>IC</th><th>CTR</th><th>CPM</th><th>Frequência</th></tr></thead><tbody id="ranking"></tbody></table></div>
         <p class="nota" id="ranking-nota"></p>
       </section>
 
@@ -663,7 +663,7 @@ function ranking() {
     const bar = document.createElement('span'); bar.className = 'lb'; bar.style.width = Math.max(2, (Math.abs(r.lucro || 0) / maxAbs) * 120) + 'px'; bar.style.background = r.lucro >= 0 ? 'var(--ok)' : 'var(--bad)'; lc.append(bar);
     const rc = cel('ROAS', ''); const chip = document.createElement('span'); chip.className = 'rc ' + faixa(r.roas); chip.textContent = r.roas == null ? '—' : dec.format(r.roas); rc.append(chip);
     cel('Gasto', R(r.gasto)); cel('Vendas', num.format(r.vendas)); cel('Faturamento', R(r.faturamento)); cel('CPA', r.cpa == null ? '—' : R(r.cpa));
-    cel('CPI', r.cpi == null ? '—' : R(r.cpi)); cel('Finalizações', num.format(r.checkouts || 0));
+    cel('CPI', r.cpi == null ? '—' : R(r.cpi)); cel('IC', num.format(r.checkouts || 0));
     cel('CTR', r.ctr == null ? '—' : dec.format(r.ctr) + '%'); cel('CPM', r.cpm == null ? '—' : R(r.cpm));
     const fq = st.freq ? (st.freq[r.nivel] || {})[r.id] : undefined;
     cel('Frequência', st.freq === null ? '…' : fq == null ? '—' : dec.format(fq), fq >= 4 ? 'neg-t' : fq >= 3 ? 'meio-t' : '');
