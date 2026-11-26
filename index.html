@@ -198,6 +198,10 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
 .pc-linha{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .pc-linha label{display:grid;gap:4px;font-size:13px;color:var(--mut)}
 .pc-linha input{font:inherit;font-size:16px;min-height:46px;padding:0 10px;border-radius:12px;border:1px solid var(--ln);background:var(--p2);color:var(--ink);color-scheme:dark;width:100%;min-width:0}
+
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--p);border:1px solid var(--ln);border-radius:14px;padding:4px}
+.seg button{min-height:40px;border:0;border-radius:10px;background:transparent;color:var(--mut);font-size:14px;font-weight:600}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
 </style>
 </head>
 <body>
@@ -224,6 +228,11 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
   <!-- PAINEL -->
   <section id="tela-painel" hidden>
     <div style="display:grid;gap:16px" id="painel">
+      <div class="seg" role="group" aria-label="Produto" id="grupo">
+        <button type="button" data-g="todos">Todos</button>
+        <button type="button" data-g="gold">🛁 Gold</button>
+        <button type="button" data-g="headspa">💆 Head Spa</button>
+      </div>
       <div class="pills" role="group" aria-label="Período" id="periodo">
         <button type="button" class="pill" data-de="0" data-ate="0">Hoje</button>
         <button type="button" class="pill" data-de="1" data-ate="1">Ontem</button>
@@ -449,7 +458,7 @@ const hojeBR = () => new Date(Date.now() - 3 * 3600e3);
 const faixa = (r) => (r == null ? '' : r >= 2 ? 'bom' : r >= 1 ? 'meio' : 'ruim');
 const guardar = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: (k) => { try { localStorage.removeItem(k); } catch {} } };
 
-const st = { codigo: guardar.get('kc_codigo') || '', de: 0, ate: 0, dados: null, nivel: 'campanha', busca: '', ordem: 'lucro', carregando: false };
+const st = { codigo: guardar.get('kc_codigo') || '', grupo: guardar.get('kc_grupo') || 'todos', de: 0, ate: 0, dados: null, nivel: 'campanha', busca: '', ordem: 'lucro', carregando: false };
 try {
   const p = JSON.parse(guardar.get('kc_periodo') || '{}');
   if (p.d0) { const h = Date.parse(new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10) + 'T00:00:00Z'); const a = (y) => Math.round((h - Date.parse(y + 'T00:00:00Z')) / 86400e3); st.de = Math.min(800, a(p.d0)); st.ate = Math.max(0, a(p.d1)); }
@@ -473,12 +482,12 @@ async function chamar(fn, body) {
 }
 
 async function carregar() {
-  if (st.carregando) return;
+  if (st.carregando) { st.denovo = true; return; }
   st.carregando = true;
   $('painel').classList.add('esq');
   $('recarregar').disabled = true;
   try {
-    st.dados = await chamar('painel', { codigo: st.codigo, de: st.de, ate: st.ate });
+    st.dados = await chamar('painel', { codigo: st.codigo, de: st.de, ate: st.ate, grupo: st.grupo });
     $('erro-painel').hidden = true;
     desenhar();
     $('atualizado').textContent = 'atualizado ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -490,6 +499,7 @@ async function carregar() {
     st.carregando = false;
     $('painel').classList.remove('esq');
     $('recarregar').disabled = false;
+    if (st.denovo) { st.denovo = false; carregar(); }
   }
 }
 
@@ -764,6 +774,10 @@ $('pc-ok').addEventListener('click', () => {
   guardar.set('kc_periodo', JSON.stringify({ d0, d1 }));
   $('per-custom').hidden = true; marcarPeriodo(); carregar();
 });
+
+function marcarGrupo() { document.querySelectorAll('#grupo button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.g === st.grupo ? 'true' : 'false')); }
+document.querySelectorAll('#grupo button').forEach((b) => b.addEventListener('click', () => { if (st.grupo === b.dataset.g) return; st.grupo = b.dataset.g; guardar.set('kc_grupo', st.grupo); marcarGrupo(); carregar(); }));
+marcarGrupo();
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { st.nivel = t.dataset.nivel; document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-selected', x === t ? 'true' : 'false')); ranking(); }));
 $('busca').addEventListener('input', (e) => { st.busca = e.target.value; ranking(); });
 $('ordem').addEventListener('change', (e) => { st.ordem = e.target.value; ranking(); });
@@ -778,7 +792,7 @@ $('btn-entrar').addEventListener('click', async () => {
   if (!c) { $('status-entrar').textContent = 'Digite o código.'; $('status-entrar').className = 'status erro'; return; }
   $('btn-entrar').disabled = true; $('status-entrar').textContent = 'Entrando…'; $('status-entrar').className = 'status';
   try {
-    st.dados = await chamar('painel', { codigo: c, de: st.de, ate: st.ate });
+    st.dados = await chamar('painel', { codigo: c, de: st.de, ate: st.ate, grupo: st.grupo });
     st.codigo = c; guardar.set('kc_codigo', c);
     tela('painel'); desenhar();
     $('atualizado').textContent = 'atualizado ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
