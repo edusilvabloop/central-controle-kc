@@ -1,5 +1,5 @@
 // Central de Controle · KC Cursos — service worker das notificações
-// v8 - filtro por produto
+// v9 - metricas meta no ranking
 const PAINEL = 'https://claude.ai/artifact/GL7N1igKBKVusHfB3z379M';
 
 self.addEventListener('install', () => self.skipWaiting());

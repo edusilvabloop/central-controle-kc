@@ -326,9 +326,9 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
             <button type="button" role="tab" class="tab" data-nivel="anuncio" aria-selected="false">Anúncios</button>
           </div>
           <input type="search" class="busca" id="busca" placeholder="Buscar (ex.: GOLD, HardSell)" aria-label="Buscar por nome">
-          <label class="ordem">Ordenar por <select id="ordem"><option value="lucro">Lucro</option><option value="gasto">Gasto</option><option value="vendas">Vendas</option><option value="roas">ROAS</option><option value="faturamento">Faturamento</option></select></label>
+          <label class="ordem">Ordenar por <select id="ordem"><option value="lucro">Lucro</option><option value="gasto">Gasto</option><option value="vendas">Vendas</option><option value="roas">ROAS</option><option value="faturamento">Faturamento</option><option value="checkouts">Finalizações</option><option value="ctr">CTR</option><option value="freq">Frequência</option></select></label>
         </div>
-        <div class="scroll"><table class="stack"><thead><tr><th>Nome</th><th>Lucro</th><th>ROAS</th><th>Gasto</th><th>Vendas</th><th>Faturamento</th><th>CPA</th></tr></thead><tbody id="ranking"></tbody></table></div>
+        <div class="scroll"><table class="stack"><thead><tr><th>Nome</th><th>Lucro</th><th>ROAS</th><th>Gasto</th><th>Vendas</th><th>Faturamento</th><th>CPA</th><th>CPI</th><th>Finalizações</th><th>CTR</th><th>CPM</th><th>Frequência</th></tr></thead><tbody id="ranking"></tbody></table></div>
         <p class="nota" id="ranking-nota"></p>
       </section>
 
@@ -488,6 +488,7 @@ async function carregar() {
   $('recarregar').disabled = true;
   try {
     st.dados = await chamar('painel', { codigo: st.codigo, de: st.de, ate: st.ate, grupo: st.grupo });
+    carregarFreq();
     $('erro-painel').hidden = true;
     desenhar();
     $('atualizado').textContent = 'atualizado ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -634,12 +635,21 @@ const vazia = (tb, cols, t) => { const tr = document.createElement('tr'); const 
 function filtrados() {
   const q = st.busca.trim().toLowerCase();
   return ((st.dados && st.dados.objetos) || []).filter((r) => r.nivel === st.nivel && (!q || String(r.nome || '').toLowerCase().includes(q) || String(r.campanha || '').toLowerCase().includes(q)))
-    .sort((a, b) => (b[st.ordem] ?? -Infinity) - (a[st.ordem] ?? -Infinity));
+    .sort((a, b) => { const v = (r) => (st.ordem === 'freq' ? (st.freq ? (st.freq[r.nivel] || {})[r.id] : null) : r[st.ordem]) ?? -Infinity; return v(b) - v(a); });
+}
+
+let freqSeq = 0;
+async function carregarFreq() {
+  const seq = ++freqSeq; const chaveAtual = st.de + '|' + st.ate + '|' + st.grupo;
+  if (st.freqChave !== chaveAtual) { st.freq = null; st.freqChave = chaveAtual; }
+  try { const j = await chamar('frequencia', { codigo: st.codigo, de: st.de, ate: st.ate, grupo: st.grupo }); if (seq !== freqSeq) return; st.freq = { campanha: j.campanha || {}, conjunto: j.conjunto || {}, anuncio: j.anuncio || {} }; }
+  catch { if (seq !== freqSeq) return; st.freq = st.freq || { campanha: {}, conjunto: {}, anuncio: {} }; }
+  if (st.dados) ranking();
 }
 function ranking() {
   const tb = $('ranking'); const todos = filtrados(); const rows = todos.slice(0, 100);
   $('ranking-nota').textContent = todos.length > 100 ? 'Mostrando os 100 primeiros de ' + num.format(todos.length) + '. Use a busca para achar os outros.' : num.format(todos.length) + ' com gasto ou venda no período.';
-  if (!rows.length) { vazia(tb, 7, 'Nada com gasto ou venda neste período.'); return; }
+  if (!rows.length) { vazia(tb, 12, 'Nada com gasto ou venda neste período.'); return; }
   const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r.lucro || 0)));
   tb.replaceChildren(...rows.map((r) => {
     const tr = document.createElement('tr');
@@ -653,6 +663,10 @@ function ranking() {
     const bar = document.createElement('span'); bar.className = 'lb'; bar.style.width = Math.max(2, (Math.abs(r.lucro || 0) / maxAbs) * 120) + 'px'; bar.style.background = r.lucro >= 0 ? 'var(--ok)' : 'var(--bad)'; lc.append(bar);
     const rc = cel('ROAS', ''); const chip = document.createElement('span'); chip.className = 'rc ' + faixa(r.roas); chip.textContent = r.roas == null ? '—' : dec.format(r.roas); rc.append(chip);
     cel('Gasto', R(r.gasto)); cel('Vendas', num.format(r.vendas)); cel('Faturamento', R(r.faturamento)); cel('CPA', r.cpa == null ? '—' : R(r.cpa));
+    cel('CPI', r.cpi == null ? '—' : R(r.cpi)); cel('Finalizações', num.format(r.checkouts || 0));
+    cel('CTR', r.ctr == null ? '—' : dec.format(r.ctr) + '%'); cel('CPM', r.cpm == null ? '—' : R(r.cpm));
+    const fq = st.freq ? (st.freq[r.nivel] || {})[r.id] : undefined;
+    cel('Frequência', st.freq === null ? '…' : fq == null ? '—' : dec.format(fq), fq >= 4 ? 'neg-t' : fq >= 3 ? 'meio-t' : '');
     return tr;
   }));
 }
@@ -793,6 +807,7 @@ $('btn-entrar').addEventListener('click', async () => {
   $('btn-entrar').disabled = true; $('status-entrar').textContent = 'Entrando…'; $('status-entrar').className = 'status';
   try {
     st.dados = await chamar('painel', { codigo: c, de: st.de, ate: st.ate, grupo: st.grupo });
+    st.codigo = c; carregarFreq();
     st.codigo = c; guardar.set('kc_codigo', c);
     tela('painel'); desenhar();
     $('atualizado').textContent = 'atualizado ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
