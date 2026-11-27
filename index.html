@@ -202,6 +202,18 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--p);border:1px solid var(--ln);border-radius:14px;padding:4px}
 .seg button{min-height:40px;border:0;border-radius:10px;background:transparent;color:var(--mut);font-size:14px;font-weight:600}
 .seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+
+.cmp-box{display:grid;gap:12px;background:var(--p2);border:1px solid var(--ln);border-radius:14px;padding:12px;margin:12px 0}
+.cmp-per{display:grid;gap:6px}
+.cmp-res{margin:12px 0;display:grid;gap:8px}
+.cmp-tit{font-size:13px;color:var(--mut)}
+.cmp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cmp-grid div{background:var(--p2);border:1px solid var(--ln);border-radius:12px;padding:8px 10px;min-width:0}
+.cmp-grid b{display:block;font-size:15px}
+.dl{display:block;font-size:11.5px;font-weight:600;margin-top:1px;white-space:nowrap}
+.dl.up{color:var(--ok)}.dl.down{color:var(--bad)}.dl.neu{color:var(--mut)}
+.tag-a{font-size:11px;color:var(--warn);margin-left:6px}
+@media(max-width:640px){.cmp-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -318,7 +330,16 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
       </section>
 
       <section class="card">
-        <h2>Ranking de campanhas, conjuntos e anúncios</h2>
+        <div class="cab"><h2>Ranking de campanhas, conjuntos e anúncios</h2><button type="button" class="pill" id="cmp-abrir" aria-pressed="false">⇄ Comparar</button></div>
+        <div class="cmp-box" id="cmp-box" hidden>
+          <div class="cmp-per"><b>Período A</b> <span class="lbl">(antes)</span>
+            <div class="pc-linha"><label>De<input type="date" id="cmp-a0" min="2025-01-16"></label><label>Até<input type="date" id="cmp-a1" min="2025-01-16"></label></div></div>
+          <div class="cmp-per"><b>Período B</b> <span class="lbl">(depois)</span>
+            <div class="pc-linha"><label>De<input type="date" id="cmp-b0" min="2025-01-16"></label><label>Até<input type="date" id="cmp-b1" min="2025-01-16"></label></div></div>
+          <div class="linha-orc"><button class="acao verde" id="cmp-ok" type="button" style="flex:1">Comparar</button><button class="acao" id="cmp-sair" type="button" style="flex:1">Sair do comparativo</button></div>
+          <p class="msg erro" id="cmp-erro" hidden></p>
+        </div>
+        <div class="cmp-res" id="cmp-res" hidden></div>
         <div class="ctrl">
           <div class="tabs" role="tablist" aria-label="Nível">
             <button type="button" role="tab" class="tab" data-nivel="campanha" aria-selected="true">Campanhas</button>
@@ -326,7 +347,7 @@ summary{cursor:pointer;color:var(--ink);min-height:32px}
             <button type="button" role="tab" class="tab" data-nivel="anuncio" aria-selected="false">Anúncios</button>
           </div>
           <input type="search" class="busca" id="busca" placeholder="Buscar (ex.: GOLD, HardSell)" aria-label="Buscar por nome">
-          <label class="ordem">Ordenar por <select id="ordem"><option value="lucro">Lucro</option><option value="gasto">Gasto</option><option value="vendas">Vendas</option><option value="roas">ROAS</option><option value="faturamento">Faturamento</option><option value="checkouts">IC</option><option value="ctr">CTR</option><option value="freq">Frequência</option></select></label>
+          <label class="ordem">Ordenar por <select id="ordem"><option value="lucro">Lucro</option><option value="gasto">Gasto</option><option value="vendas">Vendas</option><option value="roas">ROAS</option><option value="faturamento">Faturamento</option><option value="checkouts">IC</option><option value="ctr">CTR</option><option value="freq">Frequência</option><option value="d_lucro">Variação do lucro</option><option value="d_vendas">Variação de vendas</option></select></label>
         </div>
         <div class="scroll"><table class="stack"><thead><tr><th>Nome</th><th>Lucro</th><th>ROAS</th><th>Gasto</th><th>Vendas</th><th>Faturamento</th><th>CPA</th><th>CPI</th><th>IC</th><th>CTR</th><th>CPM</th><th>Frequência</th></tr></thead><tbody id="ranking"></tbody></table></div>
         <p class="nota" id="ranking-nota"></p>
@@ -638,6 +659,110 @@ function filtrados() {
     .sort((a, b) => { const v = (r) => (st.ordem === 'freq' ? (st.freq ? (st.freq[r.nivel] || {})[r.id] : null) : r[st.ordem]) ?? -Infinity; return v(b) - v(a); });
 }
 
+
+// Comparativo de períodos
+const cmp = { on: false, A: null, B: null, fA: null, fB: null, a: null, b: null };
+const MELHOR = { lucro: 1, roas: 1, vendas: 1, faturamento: 1, checkouts: 1, ctr: 1, gasto: 0, cpa: -1, cpi: -1, cpm: -1, freq: -1 };
+function delta(chave, b, a, fmt) {
+  if (a == null && b == null) return null;
+  if (['roas', 'cpa', 'cpi', 'cpm', 'ctr', 'freq'].includes(chave) && (a == null || b == null)) return null;
+  const va = Number(a || 0), vb = Number(b || 0), d = vb - va;
+  if (Math.abs(d) < 1e-9) return { t: '= igual', c: 'neu' };
+  const pct = va ? (d / Math.abs(va)) * 100 : null;
+  const dir = MELHOR[chave] ?? 0;
+  const c = dir === 0 ? 'neu' : (d > 0) === (dir > 0) ? 'up' : 'down';
+  return { t: (d > 0 ? '▲ +' : '▼ −') + fmt(Math.abs(d)) + (pct == null ? '' : ' (' + (pct > 0 ? '+' : '−') + Math.abs(pct).toFixed(0) + '%)'), c };
+}
+const fmtR = (v) => R(v), fmtN = (v) => num.format(Math.round(v)), fmtD = (v) => dec.format(v), fmtP = (v) => dec.format(v) + ' p.p.';
+function dlSpan(dd) { const sp = document.createElement('span'); if (!dd) return sp; sp.className = 'dl ' + dd.c; sp.textContent = dd.t; return sp; }
+const ymdAtras = (n) => new Date(hojeBR().getTime() - n * 86400e3).toISOString().slice(0, 10);
+function cmpPadrao() {
+  const n = st.de - st.ate + 1;
+  $('cmp-b0').value = ymdAtras(st.de); $('cmp-b1').value = ymdAtras(st.ate);
+  $('cmp-a0').value = ymdAtras(st.de + n); $('cmp-a1').value = ymdAtras(st.ate + n);
+  const h = ymdAtras(0); ['cmp-a0', 'cmp-a1', 'cmp-b0', 'cmp-b1'].forEach((i) => { $(i).max = h; });
+}
+$('cmp-abrir').addEventListener('click', () => { const ab = $('cmp-box').hidden; $('cmp-box').hidden = !ab; if (ab && !cmp.on) cmpPadrao(); });
+$('cmp-sair').addEventListener('click', () => { cmp.on = false; $('cmp-box').hidden = true; $('cmp-res').hidden = true; $('cmp-abrir').setAttribute('aria-pressed', 'false'); $('cmp-abrir').textContent = '⇄ Comparar'; ranking(); });
+async function cmpCarregar() {
+  const a0 = $('cmp-a0').value, a1 = $('cmp-a1').value || a0, b0 = $('cmp-b0').value, b1 = $('cmp-b1').value || b0;
+  const err = (t) => { $('cmp-erro').textContent = t; $('cmp-erro').hidden = false; };
+  $('cmp-erro').hidden = true;
+  if (!a0 || !b0) return err('Escolha as datas dos dois períodos.');
+  if (a1 < a0 || b1 < b0) return err('A data final não pode ser antes da inicial.');
+  const A = { de: atrasDe(a0), ate: atrasDe(a1) }, B = { de: atrasDe(b0), ate: atrasDe(b1) };
+  if (A.ate < 0 || B.ate < 0) return err('Escolha datas até hoje.');
+  $('cmp-ok').disabled = true; $('cmp-ok').textContent = 'Comparando…';
+  try {
+    const [da, db] = await Promise.all([A, B].map((P) => chamar('painel', { codigo: st.codigo, de: P.de, ate: P.ate, grupo: st.grupo })));
+    cmp.A = da; cmp.B = db; cmp.a = [a0, a1]; cmp.b = [b0, b1]; cmp.on = true; cmp.fA = null; cmp.fB = null;
+    $('cmp-box').hidden = true; $('cmp-abrir').setAttribute('aria-pressed', 'true'); $('cmp-abrir').textContent = '⇄ Comparando';
+    cmpResumo(); ranking();
+    Promise.all([A, B].map((P) => chamar('frequencia', { codigo: st.codigo, de: P.de, ate: P.ate, grupo: st.grupo }).catch(() => null)))
+      .then(([fa, fb]) => { cmp.fA = fa || {}; cmp.fB = fb || {}; if (cmp.on) ranking(); });
+  } catch (e) { err('Não foi possível comparar (' + e.message + ').'); }
+  finally { $('cmp-ok').disabled = false; $('cmp-ok').textContent = 'Comparar'; }
+}
+$('cmp-ok').addEventListener('click', cmpCarregar);
+function cmpResumo() {
+  const ra = (cmp.A.resumo || []).find((r) => r.periodo === 'atual') || {}, rb = (cmp.B.resumo || []).find((r) => r.periodo === 'atual') || {};
+  const br = (y) => y.slice(8, 10) + '/' + y.slice(5, 7);
+  const per = (p) => (p[0] === p[1] ? br(p[0]) : br(p[0]) + ' a ' + br(p[1]));
+  const box = $('cmp-res'); box.textContent = '';
+  const t = document.createElement('div'); t.className = 'cmp-tit'; t.textContent = 'B (' + per(cmp.b) + ') comparado com A (' + per(cmp.a) + ')' + (st.grupo !== 'todos' ? ' · ' + (st.grupo === 'gold' ? 'Gold' : 'Head Spa') : ''); box.append(t);
+  const g = document.createElement('div'); g.className = 'cmp-grid';
+  const itens = [['Lucro', 'lucro', R, fmtR], ['ROAS', 'roas', (v) => (v == null ? '—' : dec.format(v)), fmtD], ['Gasto', 'gasto', R, fmtR], ['Vendas', 'aprovadas', (v) => num.format(v || 0), fmtN], ['Faturamento', 'faturamento', R, fmtR], ['CPA', 'cpa', (v) => (v == null ? '—' : R(v)), fmtR]];
+  for (const [rot, k, f, fd] of itens) {
+    const d = document.createElement('div'); const l = document.createElement('span'); l.className = 'lbl'; l.textContent = rot;
+    const b = document.createElement('b'); b.textContent = f(rb[k]);
+    const a = document.createElement('span'); a.className = 'lbl'; a.style.fontSize = '11.5px'; a.textContent = 'antes ' + f(ra[k]);
+    d.append(l, b, dlSpan(delta(k === 'aprovadas' ? 'vendas' : k, rb[k], ra[k], fd)), a); g.append(d);
+  }
+  box.append(g); box.hidden = false;
+}
+function cmpLinhas() {
+  const q = st.busca.trim().toLowerCase();
+  const pega = (d) => new Map(((d && d.objetos) || []).filter((r) => r.nivel === st.nivel).map((r) => [r.id, r]));
+  const ma = pega(cmp.A), mb = pega(cmp.B);
+  const ids = new Set([...ma.keys(), ...mb.keys()]);
+  const fq = (f, r) => (f && f[st.nivel] ? f[st.nivel][r.id] : null);
+  const out = [];
+  for (const id of ids) {
+    const a = ma.get(id), b = mb.get(id), base = b || a;
+    if (q && !(String(base.nome || '').toLowerCase().includes(q) || String(base.campanha || '').toLowerCase().includes(q))) continue;
+    const z = { lucro: 0, roas: null, gasto: 0, vendas: 0, faturamento: 0, cpa: null, cpi: null, checkouts: 0, ctr: null, cpm: null };
+    const B2 = { ...z, ...(b || {}), nome: base.nome, campanha: base.campanha, nivel: base.nivel, id }, A2 = { ...z, ...(a || {}) };
+    B2.freq = fq(cmp.fB, B2); A2.freq = fq(cmp.fA, A2);
+    B2.d_lucro = (B2.lucro || 0) - (A2.lucro || 0); B2.d_vendas = (B2.vendas || 0) - (A2.vendas || 0);
+    out.push({ a: A2, b: B2, soA: !b, soB: !a });
+  }
+  const v = (x) => x.b[st.ordem] ?? -Infinity;
+  return out.sort((x, y) => v(y) - v(x));
+}
+function rankingCmp() {
+  const tb = $('ranking'); const linhas = cmpLinhas(); const rows = linhas.slice(0, 100);
+  $('ranking-nota').textContent = 'Valores do período B, com a variação em relação ao A embaixo. Verde é melhora, vermelho é piora. ' + num.format(linhas.length) + ' itens.';
+  if (!rows.length) { vazia(tb, 12, 'Nada com gasto ou venda nos dois períodos.'); return; }
+  tb.replaceChildren(...rows.map(({ a, b, soA, soB }) => {
+    const tr = document.createElement('tr');
+    tr.addEventListener('click', () => abrirItem(b));
+    const n = document.createElement('td'); n.append(document.createTextNode(b.nome || '(sem nome)'));
+    if (soA) { const t = document.createElement('span'); t.className = 'tag-a'; t.textContent = 'só no A'; n.append(t); }
+    if (soB) { const t = document.createElement('span'); t.className = 'tag-a'; t.style.color = 'var(--ok)'; t.textContent = 'novo no B'; n.append(t); }
+    if (b.nivel !== 'campanha' && b.campanha) { const sp = document.createElement('span'); sp.className = 'camp'; sp.textContent = b.campanha; n.append(sp); }
+    tr.append(n);
+    const cel = (rot, k, t, fd, cls) => { const td = document.createElement('td'); td.dataset.l = rot; const v = document.createElement('span'); v.textContent = t; if (cls) v.className = cls; td.append(v, dlSpan(delta(k, b[k], a[k], fd))); tr.append(td); };
+    cel('Lucro', 'lucro', R(b.lucro), fmtR, sinalT(b.lucro));
+    cel('ROAS', 'roas', b.roas == null ? '—' : dec.format(b.roas), fmtD);
+    cel('Gasto', 'gasto', R(b.gasto), fmtR); cel('Vendas', 'vendas', num.format(b.vendas || 0), fmtN);
+    cel('Faturamento', 'faturamento', R(b.faturamento), fmtR); cel('CPA', 'cpa', b.cpa == null ? '—' : R(b.cpa), fmtR);
+    cel('CPI', 'cpi', b.cpi == null ? '—' : R(b.cpi), fmtR); cel('IC', 'checkouts', num.format(b.checkouts || 0), fmtN);
+    cel('CTR', 'ctr', b.ctr == null ? '—' : dec.format(b.ctr) + '%', fmtP); cel('CPM', 'cpm', b.cpm == null ? '—' : R(b.cpm), fmtR);
+    cel('Frequência', 'freq', cmp.fB === null ? '…' : b.freq == null ? '—' : dec.format(b.freq), fmtD);
+    return tr;
+  }));
+}
+
 let freqSeq = 0;
 async function carregarFreq() {
   const seq = ++freqSeq; const chaveAtual = st.de + '|' + st.ate + '|' + st.grupo;
@@ -647,6 +772,7 @@ async function carregarFreq() {
   if (st.dados) ranking();
 }
 function ranking() {
+  if (cmp.on) return rankingCmp();
   const tb = $('ranking'); const todos = filtrados(); const rows = todos.slice(0, 100);
   $('ranking-nota').textContent = todos.length > 100 ? 'Mostrando os 100 primeiros de ' + num.format(todos.length) + '. Use a busca para achar os outros.' : num.format(todos.length) + ' com gasto ou venda no período.';
   if (!rows.length) { vazia(tb, 12, 'Nada com gasto ou venda neste período.'); return; }
@@ -790,7 +916,7 @@ $('pc-ok').addEventListener('click', () => {
 });
 
 function marcarGrupo() { document.querySelectorAll('#grupo button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.g === st.grupo ? 'true' : 'false')); }
-document.querySelectorAll('#grupo button').forEach((b) => b.addEventListener('click', () => { if (st.grupo === b.dataset.g) return; st.grupo = b.dataset.g; guardar.set('kc_grupo', st.grupo); marcarGrupo(); carregar(); }));
+document.querySelectorAll('#grupo button').forEach((b) => b.addEventListener('click', () => { if (st.grupo === b.dataset.g) return; st.grupo = b.dataset.g; guardar.set('kc_grupo', st.grupo); marcarGrupo(); carregar(); if (cmp.on) cmpCarregar(); }));
 marcarGrupo();
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { st.nivel = t.dataset.nivel; document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-selected', x === t ? 'true' : 'false')); ranking(); }));
 $('busca').addEventListener('input', (e) => { st.busca = e.target.value; ranking(); });
